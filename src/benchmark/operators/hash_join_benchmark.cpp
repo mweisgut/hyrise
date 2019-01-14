@@ -107,7 +107,6 @@ void execute_multi_predicate_join(benchmark::State& state, size_t chunk_size, si
   //  Print::print(table_wrapper_left);
   //  Print::print(table_wrapper_right);
 
-  /*
   // validate needs a transaction context. This is taken from test/operators/validate_test.cpp:60
   // not sure if this is the right thing to do here
   auto context = std::make_shared<TransactionContext>(1u, 3u);
@@ -122,10 +121,10 @@ void execute_multi_predicate_join(benchmark::State& state, size_t chunk_size, si
 
   validate_left->execute();
   validate_right->execute();
-   */
 
-  const auto& validate_left = table_wrapper_left;
-  const auto& validate_right = table_wrapper_right;
+
+//  const auto& validate_left = table_wrapper_left;
+//  const auto& validate_right = table_wrapper_right;
 
   // Warm up
   if (with_scan) {
@@ -145,17 +144,12 @@ void execute_multi_predicate_join(benchmark::State& state, size_t chunk_size, si
   opossum::StorageManager::get().reset();
 }
 
-/*BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_1To5_with_scan)
+BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_1To5_with_scan)
 (benchmark::State& state) {  // NOLINT 1,000 x 1,000
   execute_multi_predicate_join(state, CHUNK_SIZE, SCALE_FACTOR, 1, 5, true);
-}*/
-
-BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_2To2Point5_with_scan)
-(benchmark::State& state) {  // NOLINT 1,000 x 1,000
-  execute_multi_predicate_join(state, CHUNK_SIZE, SCALE_FACTOR, 2, 5, true);
 }
 
-/*BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_1To10_with_scan)
+BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_1To10_with_scan)
 (benchmark::State& state) {  // NOLINT 1,000 x 1,000
   execute_multi_predicate_join(state, CHUNK_SIZE, SCALE_FACTOR, 1, 10, true);
 }
@@ -183,20 +177,16 @@ BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_5To20_with_scan)
 BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_10To10_with_scan)
 (benchmark::State& state) {  // NOLINT 1,000 x 1,000
   execute_multi_predicate_join(state, CHUNK_SIZE, SCALE_FACTOR, 10, 10, true);
-}*/
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // Benchmark real multi predicate join
-/*BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_1To5)
+BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_1To5)
 (benchmark::State& state) {  // NOLINT 1,000 x 1,000
   execute_multi_predicate_join(state, CHUNK_SIZE, SCALE_FACTOR, 1, 5, false);
-}*/
-
-BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_2To2Point5)
-(benchmark::State& state) {  // NOLINT 1,000 x 1,000
-  execute_multi_predicate_join(state, CHUNK_SIZE, SCALE_FACTOR, 2, 5, false);
 }
-/*
+
+
 BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_1To10)
 (benchmark::State& state) {  // NOLINT 1,000 x 1,000
   execute_multi_predicate_join(state, CHUNK_SIZE, SCALE_FACTOR, 1, 10, false);
@@ -225,6 +215,6 @@ BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_5To20)
 BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_10To10)
 (benchmark::State& state) {  // NOLINT 1,000 x 1,000
   execute_multi_predicate_join(state, CHUNK_SIZE, SCALE_FACTOR, 10, 10, false);
-}*/
+}
 
 }  // namespace opossum
