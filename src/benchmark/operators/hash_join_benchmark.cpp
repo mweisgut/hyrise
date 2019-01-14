@@ -122,9 +122,8 @@ void execute_multi_predicate_join(benchmark::State& state, size_t chunk_size, si
   validate_left->execute();
   validate_right->execute();
 
-
-//  const auto& validate_left = table_wrapper_left;
-//  const auto& validate_right = table_wrapper_right;
+  //  const auto& validate_left = table_wrapper_left;
+  //  const auto& validate_right = table_wrapper_right;
 
   // Warm up
   if (with_scan) {
@@ -185,7 +184,6 @@ BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_1To5)
 (benchmark::State& state) {  // NOLINT 1,000 x 1,000
   execute_multi_predicate_join(state, CHUNK_SIZE, SCALE_FACTOR, 1, 5, false);
 }
-
 
 BENCHMARK_F(MicroBenchmarkBasicFixture, BM_Multi_Predicate_Join_1To10)
 (benchmark::State& state) {  // NOLINT 1,000 x 1,000
