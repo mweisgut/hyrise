@@ -432,7 +432,7 @@ class JoinHash::JoinHashImpl : public AbstractJoinOperatorImpl {
 
         auto left_accessor = create_segment_accessor<int32_t>(left_segment);
         auto right_accessor = create_segment_accessor<int32_t>(right_segment);
-        if (left_accessor->access(left_row_id.chunk_offset) == right_accessor->access(right_row_id.chunk_offset)) {
+        if (!(left_accessor->access(left_row_id.chunk_offset) == right_accessor->access(right_row_id.chunk_offset))) {
           row_pair_satisfies_predicates = false;
           break;
         }
