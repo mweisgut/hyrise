@@ -426,13 +426,25 @@ class JoinHash::JoinHashImpl : public AbstractJoinOperatorImpl {
         DebugAssert(pred.predicateCondition == PredicateCondition::Equals,
                     "Only PredicateCondition::Equals is"
                     " supported.");
-        const auto& left_segment = *left.get_chunk(left_row_id.chunk_id)->segments()[pred.column_id_pair.first];
-        const auto& right_segment = *right.get_chunk(right_row_id.chunk_id)->segments()[pred.column_id_pair.second];
 
-        if (!(left_segment[left_row_id.chunk_offset] == right_segment[right_row_id.chunk_offset])) {
-          row_pair_satisfies_predicates = false;
+        const auto& left_segment = left.get_chunk(left_row_id.chunk_id)->segments()[pred.column_id_pair.first];
+        const auto& right_segment = right.get_chunk(right_row_id.chunk_id)->segments()[pred.column_id_pair.second];
+
+        const auto column_data_type = left.column_data_type(pred.column_id_pair.first);
+
+        resolve_data_type(column_data_type, [&](const auto type) {
+            using ColumnDataType = typename decltype(type)::type;
+            auto left_accessor = create_segment_accessor<ColumnDataType>(left_segment);
+            auto right_accessor = create_segment_accessor<ColumnDataType>(right_segment);
+            if(left_accessor->access(left_row_id.chunk_offset) == right_accessor->access(right_row_id.chunk_offset)){
+              row_pair_satisfies_predicates = false;
+            }
+        });
+
+        if (!row_pair_satisfies_predicates) {
           break;
         }
+
       }
 
       if (row_pair_satisfies_predicates) {
