@@ -18,7 +18,7 @@
 namespace {
 
 const size_t CHUNK_SIZE = 10'000;
-const size_t SCALE_FACTOR = 100000;
+const size_t SCALE_FACTOR = 1000000;
 
 void clear_cache() {
   std::vector<int> clear = std::vector<int>();
@@ -109,21 +109,21 @@ void execute_multi_predicate_join(benchmark::State& state, size_t chunk_size, si
 
   // validate needs a transaction context. This is taken from test/operators/validate_test.cpp:60
   // not sure if this is the right thing to do here
-  auto context = std::make_shared<TransactionContext>(1u, 3u);
+  //  auto context = std::make_shared<TransactionContext>(1u, 3u);
+  //
+  //  // this currently fails since the Tables have no MVCC data
+  //  // src/lib/operators/validate.cpp:121
+  //  std::shared_ptr<AbstractOperator> validate_left = std::make_shared<Validate>(table_wrapper_left);
+  //  std::shared_ptr<AbstractOperator> validate_right = std::make_shared<Validate>(table_wrapper_right);
+  //
+  //  validate_left->set_transaction_context(context);
+  //  validate_right->set_transaction_context(context);
+  //
+  //  validate_left->execute();
+  //  validate_right->execute();
 
-  // this currently fails since the Tables have no MVCC data
-  // src/lib/operators/validate.cpp:121
-  std::shared_ptr<AbstractOperator> validate_left = std::make_shared<Validate>(table_wrapper_left);
-  std::shared_ptr<AbstractOperator> validate_right = std::make_shared<Validate>(table_wrapper_right);
-
-  validate_left->set_transaction_context(context);
-  validate_right->set_transaction_context(context);
-
-  validate_left->execute();
-  validate_right->execute();
-
-  //  const auto& validate_left = table_wrapper_left;
-  //  const auto& validate_right = table_wrapper_right;
+  const auto& validate_left = table_wrapper_left;
+  const auto& validate_right = table_wrapper_right;
 
   // Warm up
   if (with_scan) {
