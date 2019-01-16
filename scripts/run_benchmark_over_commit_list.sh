@@ -7,7 +7,7 @@ then
 	echo Runs a benchmark for every commit in parameters
 	echo Call the script from your build directory \(i.e., ../scripts/$0\)
 	echo Arguments: commitid_file binary [benchmark_arguments]
-	echo binary is, for example, hyriseBenchmark
+	echo binary is, for example, hyriseMicroBenchmarks
 	exit 1
 fi
 
@@ -15,6 +15,7 @@ commit_list=$1
 benchmark=$2
 shift; shift
 benchmark_arguments=$@
+initial_branch=$(git rev-parse --abbrev-ref HEAD)
 
 if [[ $(git status --untracked-files=no --porcelain) ]]
 then
@@ -42,3 +43,8 @@ do
 
 	./${benchmark} ${benchmark_arguments} -o auto_${commit}.json
 done
+
+echo =======================================================
+echo Switching back to initial Branch
+
+git checkout ${initial_branch}
