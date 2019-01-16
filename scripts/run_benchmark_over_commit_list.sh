@@ -41,7 +41,7 @@ do
     echo =======================================================
     echo Running Benchmark
 
-	./${benchmark} ${benchmark_arguments} -o auto_${commit}.json
+	./${benchmark} ${benchmark_arguments} --benchmark_out=auto_${commit}.json --benchmark_out_format=json
 done
 
 echo =======================================================
