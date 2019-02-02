@@ -370,7 +370,7 @@ void probe(const RadixContainer<RightType>& radix_container,
   std::vector<std::shared_ptr<AbstractTask>> jobs;
   jobs.reserve(radix_container.partition_offsets.size());
 
-  MultiPredicateJoinEvaluator mpje(left, right, additional_join_predicates);
+  //MultiPredicateJoinEvaluator mpje(left, right, additional_join_predicates);
 
   /*
     NUMA notes:
@@ -457,10 +457,10 @@ void probe(const RadixContainer<RightType>& radix_container,
               // fetch right row(row_id)
               // compare (-1, 0, 1)
 
-              if (mpje.fulfills_all_predicates(row_id, right_row.row_id)) {
+              //if (mpje.fulfills_all_predicates(row_id, right_row.row_id)) {
                 pos_list_left_local.emplace_back(row_id);
                 pos_list_right_local.emplace_back(right_row.row_id);
-              }
+              //}
             }
           } else {
             // We have not found matching items. Only continue for non-equi join modes.
