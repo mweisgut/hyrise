@@ -1,7 +1,6 @@
 #pragma once
 
 #include <chrono>
-#include <string>
 
 namespace opossum {
 
@@ -13,15 +12,7 @@ class Timer final {
  public:
   Timer();
 
-  /**
-   * @return Time elapsed since construction or the last call to lap(), whichever was later
-   */
-  std::chrono::nanoseconds lap();
-
-  /**
-   * Calls lap() and formats the result into a human-readable form
-   */
-  std::string lap_formatted();
+  std::chrono::microseconds lap();
 
  private:
   std::chrono::high_resolution_clock::time_point _begin;

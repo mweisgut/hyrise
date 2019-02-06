@@ -20,11 +20,6 @@ class Pagination {
    */
   void display();
 
-  /*
-   * This calls ungetch() to push the character for CTRL_C into the input queue.
-   */
-  static void push_ctrl_c();
-
  protected:
   /*
    * Prints a number of lines to fill the current terminal screen.

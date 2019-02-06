@@ -4,12 +4,11 @@
 #include <memory>
 #include <vector>
 
-#include "types.hpp"
+#include "expression/parameter_expression.hpp"
 
 namespace opossum {
 
 class AbstractLQPNode;
-class AbstractExpression;
 
 /**
  * Representing a prepared SQL statement, with the ParameterIDs to be used for the arguments to the prepared statement.

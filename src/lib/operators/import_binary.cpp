@@ -26,24 +26,6 @@ ImportBinary::ImportBinary(const std::string& filename, const std::optional<std:
 
 const std::string ImportBinary::name() const { return "ImportBinary"; }
 
-std::shared_ptr<Table> ImportBinary::read_binary(const std::string& filename) {
-  std::ifstream file;
-  file.open(filename, std::ios::binary);
-
-  Assert(file.is_open(), "ImportBinary: Could not open file " + filename);
-
-  file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-
-  std::shared_ptr<Table> table;
-  ChunkID chunk_count;
-  std::tie(table, chunk_count) = _read_header(file);
-  for (ChunkID chunk_id{0}; chunk_id < chunk_count; ++chunk_id) {
-    _import_chunk(file, table);
-  }
-
-  return table;
-}
-
 template <typename T>
 pmr_vector<T> ImportBinary::_read_values(std::ifstream& file, const size_t count) {
   pmr_vector<T> values(count);
@@ -93,7 +75,19 @@ std::shared_ptr<const Table> ImportBinary::_on_execute() {
     return StorageManager::get().get_table(*_tablename);
   }
 
-  const auto table = read_binary(_filename);
+  std::ifstream file;
+  file.open(_filename, std::ios::binary);
+
+  Assert(file.is_open(), "ImportBinary: Could not find file " + _filename);
+
+  file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+  std::shared_ptr<Table> table;
+  ChunkID chunk_count;
+  std::tie(table, chunk_count) = _read_header(file);
+  for (ChunkID chunk_id{0}; chunk_id < chunk_count; ++chunk_id) {
+    _import_chunk(file, table);
+  }
 
   if (_tablename) {
     StorageManager::get().add_table(*_tablename, table);

@@ -23,6 +23,7 @@ namespace hana = boost::hana;
  * depending on the range of the values in the vector.
  */
 enum class CompressedVectorType : uint8_t {
+  Invalid,
   FixedSize4ByteAligned,  // uncompressed
   FixedSize2ByteAligned,
   FixedSize1ByteAligned,
@@ -54,7 +55,7 @@ constexpr auto compressed_vector_for_type = hana::make_map(
  */
 template <typename CompressedVectorT>
 CompressedVectorType get_compressed_vector_type() {
-  auto compression_type = std::optional<CompressedVectorType>{};
+  auto compression_type = CompressedVectorType::Invalid;
 
   hana::fold(compressed_vector_for_type, false, [&](auto match_found, auto pair) {
     if (!match_found && (hana::second(pair) == hana::type_c<CompressedVectorT>)) {
@@ -65,8 +66,7 @@ CompressedVectorType get_compressed_vector_type() {
     return match_found;
   });
 
-  Assert(compression_type, "CompressedVectorType not added to compressed_vector_for_type");
-  return *compression_type;
+  return compression_type;
 }
 
 }  // namespace opossum

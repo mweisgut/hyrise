@@ -11,7 +11,6 @@
 #include "scheduler/current_scheduler.hpp"
 #include "scheduler/job_task.hpp"
 #include "storage/create_iterable_from_segment.hpp"
-#include "storage/segment_iterate.hpp"
 #include "type_cast.hpp"
 #include "type_comparison.hpp"
 #include "uninitialized_vector.hpp"
@@ -148,15 +147,11 @@ RadixContainer<T> materialize_input(const std::shared_ptr<const Table>& in_table
       // prepare histogram
       auto histogram = std::vector<size_t>(num_partitions);
 
-      auto reference_chunk_offset = ChunkOffset{0};
+      resolve_segment_type<T>(*segment, [&, chunk_id](auto& typed_segment) {
+        auto reference_chunk_offset = ChunkOffset{0};
+        auto iterable = create_iterable_from_segment<T>(typed_segment);
 
-      segment_with_iterators<T>(*segment, [&](auto it, const auto end) {
-        using IterableType = typename decltype(it)::IterableType;
-
-        while (it != end) {
-          const auto& value = *it;
-          ++it;
-
+        iterable.for_each([&, chunk_id](const auto& value) {
           if (!value.is_null() || consider_null_values) {
             const Hash hashed_value = hash_function(type_cast<HashedType>(value.value()));
 
@@ -165,7 +160,7 @@ RadixContainer<T> materialize_input(const std::shared_ptr<const Table>& in_table
             Instead, we use the index in the ReferenceSegment itself. This way we can later correctly dereference
             values from different inputs (important for Multi Joins).
             */
-            if constexpr (std::is_same_v<IterableType, ReferenceSegmentIterable<T>>) {
+            if constexpr (std::is_same_v<std::decay<decltype(typed_segment)>, ReferenceSegment>) {
               *(output_iterator++) = PartitionedElement<T>{RowID{chunk_id, reference_chunk_offset}, value.value()};
             } else {
               *(output_iterator++) = PartitionedElement<T>{RowID{chunk_id, value.chunk_offset()}, value.value()};
@@ -183,10 +178,10 @@ RadixContainer<T> materialize_input(const std::shared_ptr<const Table>& in_table
             ++null_value_bitvector_iterator;
           }
           // reference_chunk_offset is only used for ReferenceSegments
-          if constexpr (std::is_same_v<IterableType, ReferenceSegmentIterable<T>>) {
+          if constexpr (std::is_same_v<std::decay<decltype(typed_segment)>, ReferenceSegment>) {
             ++reference_chunk_offset;
           }
-        }
+        });
       });
 
       if constexpr (std::is_same_v<Partition<T>, uninitialized_vector<PartitionedElement<T>>>) {  // NOLINT

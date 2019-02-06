@@ -2,9 +2,9 @@
 
 #include <unordered_map>
 
-#include "types.hpp"
+#include "expression/parameter_expression.hpp"
 
-STRONG_TYPEDEF(uint16_t, ValuePlaceholderID);
+#include "types.hpp"
 
 namespace opossum {
 

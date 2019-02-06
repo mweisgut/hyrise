@@ -339,7 +339,6 @@ _CPP_HEADERS = frozenset([
     'condition_variable',
     'deque',
     'exception',
-    'filesystem',
     'forward_list',
     'fstream',
     'functional',

@@ -2,7 +2,7 @@
 
 | Name             | Version          | Platform |                              Optional |
 | ---------------- | ---------------- | -------- | ------------------------------------- |
-| autoconf         | >= 2.69          |    All   |                                    No |
+| build-essential  | any              |    Linux |                                    No |
 | boost            | >= 1.65.0        |    All   |                                    No |
 | clang            | 6                |    All   |                 Yes, if gcc installed |
 | clang-format     | 6.0 / 2018-01-11 |    All   |                      Yes (formatting) |
@@ -37,4 +37,3 @@
 - pgasus (https://github.com/kateyy/pgasus)
 - cpp-btree (https://github.com/algorithm-ninja/cpp-btree)
 - cqf (https://github.com/ArneMayer/cqf)
-- jemalloc (https://github.com/jemalloc/jemalloc)

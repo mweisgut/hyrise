@@ -89,11 +89,6 @@ EncodingType RunLengthSegment<T>::encoding_type() const {
   return EncodingType::RunLength;
 }
 
-template <typename T>
-std::optional<CompressedVectorType> RunLengthSegment<T>::compressed_vector_type() const {
-  return std::nullopt;
-}
-
 EXPLICITLY_INSTANTIATE_DATA_TYPES(RunLengthSegment);
 
 }  // namespace opossum

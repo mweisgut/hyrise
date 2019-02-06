@@ -102,6 +102,8 @@ struct STLComparisonFunctorWrapper {
 
 using EqualsEvaluator = STLComparisonFunctorWrapper<std::equal_to>;
 using NotEqualsEvaluator = STLComparisonFunctorWrapper<std::not_equal_to>;
+using GreaterThanEvaluator = STLComparisonFunctorWrapper<std::greater>;
+using GreaterThanEqualsEvaluator = STLComparisonFunctorWrapper<std::greater_equal>;
 using LessThanEvaluator = STLComparisonFunctorWrapper<std::less>;
 using LessThanEqualsEvaluator = STLComparisonFunctorWrapper<std::less_equal>;
 

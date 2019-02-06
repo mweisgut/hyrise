@@ -26,14 +26,14 @@ class SQLBenchmark : public MicroBenchmarkBasicFixture {
     // Add tables to StorageManager.
     // This is required for the translator to get the column names of a table.
     auto& storage_manager = StorageManager::get();
-    storage_manager.add_table("customer", load_table("resources/test_data/tbl/tpch/minimal/customer.tbl"));
-    storage_manager.add_table("lineitem", load_table("resources/test_data/tbl/tpch/minimal/lineitem.tbl"));
-    storage_manager.add_table("orders", load_table("resources/test_data/tbl/tpch/minimal/orders.tbl"));
+    storage_manager.add_table("customer", load_table("src/test/tables/tpch/minimal/customer.tbl"));
+    storage_manager.add_table("lineitem", load_table("src/test/tables/tpch/minimal/lineitem.tbl"));
+    storage_manager.add_table("orders", load_table("src/test/tables/tpch/minimal/orders.tbl"));
   }
 
   // Run a benchmark that compiles the given SQL query.
-  void BM_CompileQuery(benchmark::State& state) {
-    for (auto _ : state) {
+  void BM_CompileQuery(benchmark::State& st) {  // NOLINT
+    while (st.KeepRunning()) {
       SQLParserResult result;
       SQLParser::parseSQLString(query, &result);
       auto result_node = SQLTranslator{UseMvcc::No}.translate_parser_result(result)[0];
@@ -42,30 +42,30 @@ class SQLBenchmark : public MicroBenchmarkBasicFixture {
   }
 
   // Run a benchmark that only parses the given SQL query.
-  void BM_ParseQuery(benchmark::State& state) {
-    for (auto _ : state) {
+  void BM_ParseQuery(benchmark::State& st) {  // NOLINT
+    while (st.KeepRunning()) {
       SQLParserResult result;
       SQLParser::parseSQLString(query, &result);
     }
   }
 
   // Run a benchmark that only plans the given SQL query.
-  void BM_PlanQuery(benchmark::State& state) {
+  void BM_PlanQuery(benchmark::State& st) {  // NOLINT
     SQLParserResult result;
     SQLParser::parseSQLString(query, &result);
-    for (auto _ : state) {
+    while (st.KeepRunning()) {
       auto result_node = SQLTranslator{UseMvcc::No}.translate_parser_result(result)[0];
       LQPTranslator{}.translate_node(result_node);
     }
   }
 
   // Run a benchmark that plans the query operator with the given query with enabled query plan caching.
-  void BM_QueryPlanCache(benchmark::State& state) {
+  void BM_QueryPlanCache(benchmark::State& st) {  // NOLINT
     // Enable query plan cache.
     SQLPhysicalPlanCache::get().clear();
     SQLPhysicalPlanCache::get().resize(16);
 
-    for (auto _ : state) {
+    while (st.KeepRunning()) {
       auto pipeline_statement = SQLPipelineBuilder{query}.create_pipeline_statement();
       pipeline_statement.get_physical_plan();
     }

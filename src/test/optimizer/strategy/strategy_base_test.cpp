@@ -20,7 +20,7 @@ std::shared_ptr<AbstractLQPNode> StrategyBaseTest::apply_rule(const std::shared_
 
   // Remove LogicalPlanRootNode
   const auto optimized_node = root_node->left_input();
-  root_node->set_left_input(nullptr);
+  optimized_node->clear_outputs();
 
   return optimized_node;
 }
