@@ -458,6 +458,7 @@ set(
     storage/run_length_segment.hpp
     storage/run_length_segment/run_length_encoder.hpp
     storage/run_length_segment/run_length_segment_iterable.hpp
+    storage/segment_accessor.cpp
     storage/segment_accessor.hpp
     storage/segment_encoding_utils.cpp
     storage/segment_encoding_utils.hpp
