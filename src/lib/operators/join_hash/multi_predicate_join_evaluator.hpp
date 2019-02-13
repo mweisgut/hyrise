@@ -19,57 +19,90 @@ class BaseVoidComparator {
 
   BaseVoidComparator(BaseVoidComparator&&) = default;
 
-  virtual bool compare(const void* a, const void* b) const = 0;
+  virtual bool compare(const void *a, const void *b) const = 0;
 
-  virtual ~BaseVoidComparator() {}
+  virtual ~BaseVoidComparator() = default;
 };
 
-template <typename T>
+template<typename T>
 class EqVoidComparator : public BaseVoidComparator {
  public:
-  bool compare(const void* a, const void* b) const override {
-    return *static_cast<const T*>(a) == *static_cast<const T*>(b);
+  bool compare(const void *a, const void *b) const override {
+    return *static_cast<const T *>(a) == *static_cast<const T *>(b);
   }
 };
 
-template <typename T>
+template<typename T>
 class LtEqVoidComparator : public BaseVoidComparator {
  public:
-  bool compare(const void* a, const void* b) const override {
-    return *static_cast<const T*>(a) <= *static_cast<const T*>(b);
+  bool compare(const void *a, const void *b) const override {
+    return *static_cast<const T *>(a) <= *static_cast<const T *>(b);
   }
 };
 
-template <typename T>
+template<typename T>
 class LtVoidComparator : public BaseVoidComparator {
  public:
-  bool compare(const void* a, const void* b) const override {
-    return *static_cast<const T*>(a) < *static_cast<const T*>(b);
+  bool compare(const void *a, const void *b) const override {
+    return *static_cast<const T *>(a) < *static_cast<const T *>(b);
   }
 };
 
-template <typename T>
+template<typename T>
 class GtEqVoidComparator : public BaseVoidComparator {
  public:
-  bool compare(const void* a, const void* b) const override {
-    return *static_cast<const T*>(a) >= *static_cast<const T*>(b);
+  bool compare(const void *a, const void *b) const override {
+    return *static_cast<const T *>(a) >= *static_cast<const T *>(b);
   }
 };
 
-template <typename T>
+template<typename T>
 class GtVoidComparator : public BaseVoidComparator {
  public:
-  bool compare(const void* a, const void* b) const override {
-    return *static_cast<const T*>(a) > *static_cast<const T*>(b);
+  bool compare(const void *a, const void *b) const override {
+    return *static_cast<const T *>(a) > *static_cast<const T *>(b);
   }
 };
 
-template <typename T>
+template<typename T>
 class NEqVoidComparator : public BaseVoidComparator {
  public:
-  bool compare(const void* a, const void* b) const override {
-    return *static_cast<const T*>(a) != *static_cast<const T*>(b);
+  bool compare(const void *a, const void *b) const override {
+    return *static_cast<const T *>(a) != *static_cast<const T *>(b);
   }
+};
+
+
+template<typename CompareFunctor, typename L, typename R>
+class Comparator {
+ public:
+  Comparator(CompareFunctor compare_functor,
+             std::vector<AbstractSegmentAccessor<L>> left_accessors,
+             std::vector<AbstractSegmentAccessor<R>> right_accessors)
+      : _compare{std::move(compare_functor)}, _left_accessors{std::move(left_accessors)},
+        _right_accessors{std::move(right_accessors)} {
+  }
+
+  Comparator(const Comparator&) = delete;
+
+  Comparator(Comparator&&) = delete;
+
+  bool compare(const RowID left, const RowID right) const {
+
+    // Todo: Expensive copy operations?
+    const L left_value = _left_accessors[left.chunk_id].access(left.chunk_offset);
+    const R right_value = _right_accessors[right.chunk_id]->access(right.chunk_offset);
+
+    // Todo: What, if we don't have a value here?
+    return _compare(left_value.value(), right_value.value());
+  }
+
+  virtual ~Comparator() = default;
+
+ private:
+  const CompareFunctor _compare;
+  const std::vector<AbstractSegmentAccessor<L>> _left_accessors;
+  const std::vector<AbstractSegmentAccessor<R>> _right_accessors;
 };
 
 class MultiPredicateJoinEvaluator {
@@ -77,9 +110,7 @@ class MultiPredicateJoinEvaluator {
   MultiPredicateJoinEvaluator(const Table& left, const Table& right, const std::vector<JoinPredicate>& join_predicates)
       : _left{left},
         _right{right},
-        _join_predicates{join_predicates},
-        _left_row_data{join_predicates.size(), nullptr},
-        _right_row_data{join_predicates.size(), nullptr} {
+        _join_predicates{join_predicates} {
     std::vector<ColumnID> left_col_ids;
     std::vector<ColumnID> right_col_ids;
 
@@ -89,6 +120,10 @@ class MultiPredicateJoinEvaluator {
 
       resolve_data_type(_left.column_data_type(pred.column_id_pair.first), [&](auto type) {
         using ColumnDataType = typename decltype(type)::type;
+
+        Comparator<std::equal_to<void>, int, int> bla(std::equal_to<void>{},std::vector<AbstractSegmentAccessor<int>>{},
+            std::vector<AbstractSegmentAccessor<int>>{});
+
 
         switch (pred.predicate_condition) {
           case PredicateCondition::Equals:
@@ -151,8 +186,6 @@ class MultiPredicateJoinEvaluator {
   const Table& _right;
   const std::vector<JoinPredicate>& _join_predicates;
 
-  std::vector<const void*> _left_row_data;
-  std::vector<const void*> _right_row_data;
   std::vector<std::unique_ptr<BaseVoidComparator>> _comparators;
   // column // chunk
   std::vector<std::vector<std::unique_ptr<BaseSegmentAccessor>>> _left_accessors;
@@ -161,7 +194,7 @@ class MultiPredicateJoinEvaluator {
   static std::vector<std::vector<std::unique_ptr<BaseSegmentAccessor>>> _create_accessors(
       const Table& table, const std::vector<ColumnID>& column_ids) {
     std::vector<std::vector<std::unique_ptr<BaseSegmentAccessor>>> accessors;
-    accessors.resize(table.column_count());
+    accessors.resize(column_ids.size());
 
     ColumnID accessor_col_index{0};
     for (const auto& col_id : column_ids) {
@@ -175,6 +208,20 @@ class MultiPredicateJoinEvaluator {
       });
       ++accessor_col_index;
     }
+    return accessors;
+  }
+
+  template <typename T>
+  static std::vector<std::unique_ptr<AbstractSegmentAccessor<T>>> _create_accessors(
+      const Table& table, const ColumnID column_id) {
+    std::vector<std::unique_ptr<AbstractSegmentAccessor<T>>> accessors;
+
+    accessors.resize(table.chunk_count());
+    for (ChunkID chunk_id{0}; chunk_id < table.chunk_count(); ++chunk_id) {
+      const auto& segment = table.get_chunk(chunk_id)->get_segment(column_id);
+      accessors[chunk_id] = opossum::detail::CreateSegmentAccessor<T>::create(segment);
+    }
+
     return accessors;
   }
 };
