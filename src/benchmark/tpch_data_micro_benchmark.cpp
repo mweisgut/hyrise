@@ -9,6 +9,7 @@
 #include "logical_query_plan/predicate_node.hpp"
 #include "logical_query_plan/projection_node.hpp"
 #include "logical_query_plan/stored_table_node.hpp"
+#include "operators/index_scan.hpp"
 #include "operators/join_hash.hpp"
 #include "operators/join_sort_merge.hpp"
 #include "operators/table_scan.hpp"
@@ -17,7 +18,9 @@
 #include "scheduler/operator_task.hpp"
 #include "storage/chunk_encoder.hpp"
 #include "storage/encoding_type.hpp"
+#include "storage/index/group_key/group_key_index.hpp"
 #include "storage/storage_manager.hpp"
+#include "storage/table.hpp"
 #include "tpch/tpch_table_generator.hpp"
 
 using namespace opossum::expression_functional;  // NOLINT
@@ -38,7 +41,7 @@ class TPCHDataMicroBenchmarkFixture : public MicroBenchmarkBasicFixture {
     // TODO(anyone): setup benchmark_config with the given default_encoding
     // benchmark_config.encoding_config = EncodingConfig{SegmentEncodingSpec{default_encoding}};
 
-    if (!sm.has_table("lineitem")) {
+    if (sm.tables().empty()) {
       std::cout << "Generating TPC-H data set with scale factor " << scale_factor << " and "
                 << encoding_type_to_string.left.at(default_encoding) << " encoding:" << std::endl;
       TpchTableGenerator(scale_factor, std::make_shared<BenchmarkConfig>(benchmark_config)).generate_and_store();
@@ -56,7 +59,7 @@ class TPCHDataMicroBenchmarkFixture : public MicroBenchmarkBasicFixture {
     _tpchq6_discount_operand = pqp_column_(ColumnID{6}, lineitem_table->column_data_type(ColumnID{6}),
                                            lineitem_table->column_is_nullable(ColumnID{6}), "");
     _tpchq6_discount_predicate =
-        std::make_shared<BetweenExpression>(_tpchq6_discount_operand, value_(0.05), value_(0.70001));
+        std::make_shared<BetweenExpression>(_tpchq6_discount_operand, value_(0.05), value_(0.070001));
 
     _tpchq6_shipdate_less_operand = pqp_column_(ColumnID{10}, lineitem_table->column_data_type(ColumnID{10}),
                                                 lineitem_table->column_is_nullable(ColumnID{10}), "");
@@ -126,6 +129,96 @@ class TPCHDataMicroBenchmarkFixture : public MicroBenchmarkBasicFixture {
   LQPColumnReference _orders_orderpriority, _orders_orderdate, _orders_orderkey;
   LQPColumnReference _lineitem_orderkey, _lineitem_commitdate, _lineitem_receiptdate;
 };
+
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q6_lineitem_shipdate_less_predicate_table_scan)
+(benchmark::State& state) {
+  for (auto _ : state) {
+    const auto table_scan =
+        std::make_shared<TableScan>(_table_wrapper_map.at("lineitem"), _tpchq6_shipdate_less_predicate);
+    table_scan->execute();
+  }
+}
+
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q6_lineitem_shipdate_less_predicate_index_scan)
+(benchmark::State& state) {
+  // column "shipdate" of table "lineitem" has the column id 10
+  std::vector<ColumnID> index_column_ids = {ColumnID{10}};
+  const auto right_values = std::vector<AllTypeVariant>{AllTypeVariant{"1995-01-01"}};
+
+  auto lineitem_table = StorageManager::get().get_table("lineitem");
+  lineitem_table->create_index<GroupKeyIndex>(index_column_ids);
+  auto lineitem_table_wrapper = std::make_shared<TableWrapper>(lineitem_table);
+  lineitem_table_wrapper->execute();
+
+  for (auto _ : state) {
+    const auto index_scan = std::make_shared<IndexScan>(lineitem_table_wrapper, SegmentIndexType::GroupKey,
+                                                        index_column_ids, PredicateCondition::LessThan, right_values);
+    index_scan->execute();
+  }
+}
+
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q3_orders_orderdate_predicate_table_scan)(benchmark::State& state) {
+  // TCP-H Q3, orders.o_orderdate
+  // SELECT l_orderkey, SUM(l_extendedprice*(1.0-l_discount)) as revenue, o_orderdate, o_shippriority
+  // FROM customer, orders, lineitem
+  // WHERE c_mktsegment = 'BUILDING'
+  //   AND c_custkey = o_custkey
+  //   AND l_orderkey = o_orderkey
+  //   AND o_orderdate < '1995-03-15'
+  //   AND l_shipdate > '1995-03-15'
+  // GROUP BY l_orderkey, o_orderdate, o_shippriority
+  // ORDER BY revenue DESC, o_orderdate;
+
+  auto orders_table = StorageManager::get().get_table("orders");
+
+  const auto& tpchq3_orderdate_operand = pqp_column_(ColumnID{4}, orders_table->column_data_type(ColumnID{4}),
+                                                     orders_table->column_is_nullable(ColumnID{4}), "");
+  const auto& tpchq3_orderdate_predicate = std::make_shared<BinaryPredicateExpression>(
+      PredicateCondition::LessThan, tpchq3_orderdate_operand, value_("1995-03-15"));
+
+  for (auto _ : state) {
+    const auto table_scan = std::make_shared<TableScan>(_table_wrapper_map.at("orders"), tpchq3_orderdate_predicate);
+    table_scan->execute();
+  }
+}
+
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q3_orders_orderdate_predicate_index_scan)(benchmark::State& state) {
+  // column "orderdate" of table "orders" has the column id 4
+  std::vector<ColumnID> index_column_ids = {ColumnID{4}};
+  const auto right_values = std::vector<AllTypeVariant>{AllTypeVariant{"1995-03-15"}};
+
+  auto orders_table = StorageManager::get().get_table("orders");
+  orders_table->create_index<GroupKeyIndex>(index_column_ids);
+  auto orders_table_wrapper = std::make_shared<TableWrapper>(orders_table);
+  orders_table_wrapper->execute();
+
+  for (auto _ : state) {
+    const auto index_scan = std::make_shared<IndexScan>(orders_table_wrapper, SegmentIndexType::GroupKey,
+                                                        index_column_ids, PredicateCondition::LessThan, right_values);
+    index_scan->execute();
+  }
+}
+
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q14_part_partkey_predicate_hash_join)(benchmark::State& state) {
+  // TCP-H Q14, part.p_partkey
+  // SELECT 100.00 *
+  //   SUM(case when p_type like 'PROMO%' then l_extendedprice*(1.0-l_discount) else 0 end) /
+  //   SUM(l_extendedprice * (1.0 - l_discount)) as promo_revenue
+  // FROM lineitem, "part"
+  // WHERE l_partkey = p_partkey
+  //   AND l_shipdate >= '1995-09-01'
+  //   AND l_shipdate < '1995-10-01';
+
+  for (auto _ : state) {
+    // TODO(Marcel) implement
+  }
+}
+
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q14_part_partkey_predicate_index_join)(benchmark::State& state) {
+  for (auto _ : state) {
+    // TODO(Marcel) implement
+  }
+}
 
 BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCHQ6FirstScanPredicate)(benchmark::State& state) {
   for (auto _ : state) {
@@ -214,17 +307,21 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TableScanStringOnReferenceTable)(b
  */
 BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCHQ4WithExistsSubquery)(benchmark::State& state) {
   // clang-format off
-  const auto parameter = correlated_parameter_(ParameterID{0}, _orders_orderkey);
-  const auto subquery_lqp = PredicateNode::make(equals_(parameter, _lineitem_orderkey),
-      PredicateNode::make(less_than_(_lineitem_commitdate, _lineitem_receiptdate), _lineitem_table_node));
-  const auto subquery = lqp_subquery_(subquery_lqp, std::make_pair(ParameterID{0}, _orders_orderkey));
+        const auto parameter = correlated_parameter_(ParameterID{0}, _orders_orderkey);
+        const auto subquery_lqp = PredicateNode::make(equals_(parameter, _lineitem_orderkey),
+                                                      PredicateNode::make(
+                                                              less_than_(_lineitem_commitdate, _lineitem_receiptdate),
+                                                              _lineitem_table_node));
+        const auto subquery = lqp_subquery_(subquery_lqp, std::make_pair(ParameterID{0}, _orders_orderkey));
 
-  const auto lqp =
-  ProjectionNode::make(expression_vector(_orders_orderpriority),
-    PredicateNode::make(equals_(exists_(subquery), 1),
-      PredicateNode::make(greater_than_equals_(_orders_orderdate, "1993-07-01"),
-        PredicateNode::make(less_than_(_orders_orderdate, "1993-10-01"),
-         _orders_table_node))));
+        const auto lqp =
+                ProjectionNode::make(expression_vector(_orders_orderpriority),
+                                     PredicateNode::make(equals_(exists_(subquery), 1),
+                                                         PredicateNode::make(
+                                                                 greater_than_equals_(_orders_orderdate, "1993-07-01"),
+                                                                 PredicateNode::make(
+                                                                         less_than_(_orders_orderdate, "1993-10-01"),
+                                                                         _orders_table_node))));
   // clang-format on
 
   for (auto _ : state) {
@@ -236,13 +333,17 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCHQ4WithExistsSubquery)(benchmar
 
 BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCHQ4WithUnnestedSemiJoin)(benchmark::State& state) {
   // clang-format off
-  const auto lqp =
-  ProjectionNode::make(expression_vector(_orders_orderpriority),
-    JoinNode::make(JoinMode::Semi, equals_(_lineitem_orderkey, _orders_orderkey),
-      PredicateNode::make(greater_than_equals_(_orders_orderdate, "1993-07-01"),
-        PredicateNode::make(less_than_(_orders_orderdate, "1993-10-01"),
-         _orders_table_node)),
-      PredicateNode::make(less_than_(_lineitem_commitdate, _lineitem_receiptdate), _lineitem_table_node)));
+        const auto lqp =
+                ProjectionNode::make(expression_vector(_orders_orderpriority),
+                                     JoinNode::make(JoinMode::Semi, equals_(_lineitem_orderkey, _orders_orderkey),
+                                                    PredicateNode::make(
+                                                            greater_than_equals_(_orders_orderdate, "1993-07-01"),
+                                                            PredicateNode::make(
+                                                                    less_than_(_orders_orderdate, "1993-10-01"),
+                                                                    _orders_table_node)),
+                                                    PredicateNode::make(
+                                                            less_than_(_lineitem_commitdate, _lineitem_receiptdate),
+                                                            _lineitem_table_node)));
   // clang-format on
 
   for (auto _ : state) {
