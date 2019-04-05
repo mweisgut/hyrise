@@ -85,3 +85,59 @@ TPCHDataMicroBenchmarkFixture/BM_TPCH_Q14_part_partkey_predicate_groupKeyIndex_j
 TPCHDataMicroBenchmarkFixture/BM_TPCH_Q14_part_partkey_predicate_bTreeIndex_join             1732551098 ns 1732541397 ns          1
 
 ```
+
+```
+2019-04-05 12:13:22
+Running ./hyriseMicroBenchmarks
+Run on (32 X 2500 MHz CPU s)
+CPU Caches:
+  L1 Data 32K (x32)
+  L1 Instruction 32K (x32)
+  L2 Unified 256K (x32)
+  L3 Unified 25600K (x32)
+Generating TPC-H data set with scale factor 1 and Dictionary encoding:
+- Loading/Generating tables
+- Loading/Generating tables done (16 s 653 ms)
+- Encoding tables if necessary
+-  Encoding 'nation' - encoding applied (1 ms 140 µs)
+-  Encoding 'orders' - encoding applied (509 ms 749 µs)
+-  Encoding 'region' - encoding applied (506 µs 328 ns)
+-  Encoding 'part' - encoding applied (447 ms 337 µs)
+-  Encoding 'lineitem' - encoding applied (1 s 470 ms)
+-  Encoding 'partsupp' - encoding applied (384 ms 550 µs)
+-  Encoding 'customer' - encoding applied (536 ms 807 µs)
+-  Encoding 'supplier' - encoding applied (41 ms 357 µs)
+- Encoding tables done (3 s 392 ms)
+- Adding Tables to StorageManager and generating statistics
+-  Adding 'nation' (176 µs 350 ns)
+-  Adding 'orders' (2 s 306 ms)
+-  Adding 'region' (88 µs 533 ns)
+-  Adding 'part' (302 ms 375 µs)
+-  Adding 'lineitem' (10 s 751 ms)
+-  Adding 'partsupp' (1 s 331 ms)
+-  Adding 'customer' (426 ms 387 µs)
+-  Adding 'supplier' (16 ms 842 µs)
+- Adding Tables to StorageManager and generating statistics done (15 s 135 ms)
+------------------------------------------------------------------------------------------------------------------------------------
+Benchmark                                                                                             Time           CPU Iterations
+------------------------------------------------------------------------------------------------------------------------------------
+TPCHDataMicroBenchmarkFixture/BM_TPCH_Q6_lineitem_shipdate_less_predicate_table_scan           18117844 ns   18117423 ns         39
+TPCHDataMicroBenchmarkFixture/BM_TPCH_Q6_lineitem_shipdate_less_predicate_groupKeyIndex_scan    8617421 ns    8617201 ns         84
+TPCHDataMicroBenchmarkFixture/BM_TPCH_Q6_lineitem_shipdate_less_predicate_bTreeIndex_scan       8512328 ns    8512135 ns         82
+TPCHDataMicroBenchmarkFixture/BM_TPCH_Q3_orders_orderdate_predicate_table_scan                  7536569 ns    7536306 ns         94
+TPCHDataMicroBenchmarkFixture/BM_TPCH_Q3_orders_orderdate_predicate_groupKeyIndex_scan          1957065 ns    1956986 ns        355
+TPCHDataMicroBenchmarkFixture/BM_TPCH_Q3_orders_orderdate_predicate_bTreeIndex_scan             1961092 ns    1960984 ns        357
+lineitem row count: 6001215
+part row count: 200000
+lineitem row count: 6001215
+part row count: 200000
+TPCHDataMicroBenchmarkFixture/BM_TPCH_Q14_part_partkey_predicate_hash_join                    388650537 ns  388651633 ns          2
+lineitem row count: 6001215
+part row count: 200000
+TPCHDataMicroBenchmarkFixture/BM_TPCH_Q14_part_partkey_predicate_groupKeyIndex_join          1640895367 ns 1640861942 ns          1
+lineitem row count: 6001215
+part row count: 200000
+TPCHDataMicroBenchmarkFixture/BM_TPCH_Q14_part_partkey_predicate_bTreeIndex_join             1720819950 ns 1720719245 ns          1
+```
+
+Query 14 (with query id 13) returns 42 rows
