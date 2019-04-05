@@ -28,6 +28,13 @@ uses a `JoinIndex` operator to join tables `part` and `lineitem` with join predi
 Only indices of type `BTreeIndex` exist for column `l_partkey` of table `lineitem` and for column `p_partkey` of table `part`.
 
 ### Benchmark Results
+Used flags:
+```
+-DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+-DENABLE_JIT_SUPPORT=OFF
+-DENABLE_NUMA_SUPPORT=OFF
+-DCMAKE_BUILD_TYPE=Release
+```
 
 ```
 Running ./hyriseMicroBenchmarks
