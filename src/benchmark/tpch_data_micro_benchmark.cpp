@@ -11,6 +11,8 @@
 #include "logical_query_plan/stored_table_node.hpp"
 #include "operators/index_scan.hpp"
 #include "operators/join_hash.hpp"
+#include "operators/join_index.hpp"
+#include "operators/join_nested_loop.hpp"
 #include "operators/join_sort_merge.hpp"
 #include "operators/table_scan.hpp"
 #include "operators/table_wrapper.hpp"
@@ -18,6 +20,7 @@
 #include "scheduler/operator_task.hpp"
 #include "storage/chunk_encoder.hpp"
 #include "storage/encoding_type.hpp"
+#include "storage/index/b_tree/b_tree_index.hpp"
 #include "storage/index/group_key/group_key_index.hpp"
 #include "storage/storage_manager.hpp"
 #include "storage/table.hpp"
@@ -34,7 +37,7 @@ class TPCHDataMicroBenchmarkFixture : public MicroBenchmarkBasicFixture {
  public:
   void SetUp(::benchmark::State& state) {
     auto& sm = StorageManager::get();
-    const auto scale_factor = 0.001f;
+    const auto scale_factor = 1.0f;
     const auto default_encoding = EncodingType::Dictionary;
 
     auto benchmark_config = BenchmarkConfig::get_default_config();
@@ -109,6 +112,16 @@ class TPCHDataMicroBenchmarkFixture : public MicroBenchmarkBasicFixture {
     return wrapper_map;
   }
 
+  void remove_table_index(const std::shared_ptr<Table>& table, const std::vector<ColumnID>& index_column_ids) {
+    // remove created chunk indices, since table has no function "remove_index",
+    // we have to iterate over the chunks
+    for (const auto& chunk : table->chunks()) {
+      for (const auto& index : chunk->get_indices(index_column_ids)) {
+        chunk->remove_index(index);
+      }
+    }
+  }
+
   inline static bool _tpch_data_generated = false;
 
   std::map<std::string, std::shared_ptr<TableWrapper>> _table_wrapper_map;
@@ -139,13 +152,13 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q6_lineitem_shipdate_less_pre
   }
 }
 
-BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q6_lineitem_shipdate_less_predicate_index_scan)
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q6_lineitem_shipdate_less_predicate_groupKeyIndex_scan)
 (benchmark::State& state) {
   // column "shipdate" of table "lineitem" has the column id 10
-  std::vector<ColumnID> index_column_ids = {ColumnID{10}};
-  const auto right_values = std::vector<AllTypeVariant>{AllTypeVariant{"1995-01-01"}};
+  const std::vector<ColumnID>& index_column_ids = {ColumnID{10}};
+  const auto& right_values = std::vector<AllTypeVariant>{AllTypeVariant{"1995-01-01"}};
 
-  auto lineitem_table = StorageManager::get().get_table("lineitem");
+  const auto& lineitem_table = StorageManager::get().get_table("lineitem");
   lineitem_table->create_index<GroupKeyIndex>(index_column_ids);
   auto lineitem_table_wrapper = std::make_shared<TableWrapper>(lineitem_table);
   lineitem_table_wrapper->execute();
@@ -155,6 +168,28 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q6_lineitem_shipdate_less_pre
                                                         index_column_ids, PredicateCondition::LessThan, right_values);
     index_scan->execute();
   }
+
+  remove_table_index(lineitem_table, index_column_ids);
+}
+
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q6_lineitem_shipdate_less_predicate_bTreeIndex_scan)
+(benchmark::State& state) {
+  // column "shipdate" of table "lineitem" has the column id 10
+  const std::vector<ColumnID>& index_column_ids = {ColumnID{10}};
+  const auto& right_values = std::vector<AllTypeVariant>{AllTypeVariant{"1995-01-01"}};
+
+  const auto& lineitem_table = StorageManager::get().get_table("lineitem");
+  lineitem_table->create_index<BTreeIndex>(index_column_ids);
+  auto lineitem_table_wrapper = std::make_shared<TableWrapper>(lineitem_table);
+  lineitem_table_wrapper->execute();
+
+  for (auto _ : state) {
+    const auto index_scan = std::make_shared<IndexScan>(lineitem_table_wrapper, SegmentIndexType::BTree,
+                                                        index_column_ids, PredicateCondition::LessThan, right_values);
+    index_scan->execute();
+  }
+
+  remove_table_index(lineitem_table, index_column_ids);
 }
 
 BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q3_orders_orderdate_predicate_table_scan)(benchmark::State& state) {
@@ -169,7 +204,7 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q3_orders_orderdate_predicate
   // GROUP BY l_orderkey, o_orderdate, o_shippriority
   // ORDER BY revenue DESC, o_orderdate;
 
-  auto orders_table = StorageManager::get().get_table("orders");
+  const auto& orders_table = StorageManager::get().get_table("orders");
 
   const auto& tpchq3_orderdate_operand = pqp_column_(ColumnID{4}, orders_table->column_data_type(ColumnID{4}),
                                                      orders_table->column_is_nullable(ColumnID{4}), "");
@@ -182,12 +217,13 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q3_orders_orderdate_predicate
   }
 }
 
-BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q3_orders_orderdate_predicate_index_scan)(benchmark::State& state) {
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q3_orders_orderdate_predicate_groupKeyIndex_scan)
+(benchmark::State& state) {
   // column "orderdate" of table "orders" has the column id 4
-  std::vector<ColumnID> index_column_ids = {ColumnID{4}};
-  const auto right_values = std::vector<AllTypeVariant>{AllTypeVariant{"1995-03-15"}};
+  const std::vector<ColumnID>& index_column_ids = {ColumnID{4}};
+  const auto& right_values = std::vector<AllTypeVariant>{AllTypeVariant{"1995-03-15"}};
 
-  auto orders_table = StorageManager::get().get_table("orders");
+  const auto& orders_table = StorageManager::get().get_table("orders");
   orders_table->create_index<GroupKeyIndex>(index_column_ids);
   auto orders_table_wrapper = std::make_shared<TableWrapper>(orders_table);
   orders_table_wrapper->execute();
@@ -197,6 +233,28 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q3_orders_orderdate_predicate
                                                         index_column_ids, PredicateCondition::LessThan, right_values);
     index_scan->execute();
   }
+
+  remove_table_index(orders_table, index_column_ids);
+}
+
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q3_orders_orderdate_predicate_bTreeIndex_scan)
+(benchmark::State& state) {
+  // column "orderdate" of table "orders" has the column id 4
+  const std::vector<ColumnID>& index_column_ids = {ColumnID{4}};
+  const auto& right_values = std::vector<AllTypeVariant>{AllTypeVariant{"1995-03-15"}};
+
+  const auto& orders_table = StorageManager::get().get_table("orders");
+  orders_table->create_index<BTreeIndex>(index_column_ids);
+  auto orders_table_wrapper = std::make_shared<TableWrapper>(orders_table);
+  orders_table_wrapper->execute();
+
+  for (auto _ : state) {
+    const auto index_scan = std::make_shared<IndexScan>(orders_table_wrapper, SegmentIndexType::BTree, index_column_ids,
+                                                        PredicateCondition::LessThan, right_values);
+    index_scan->execute();
+  }
+
+  remove_table_index(orders_table, index_column_ids);
 }
 
 BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q14_part_partkey_predicate_hash_join)(benchmark::State& state) {
@@ -209,15 +267,102 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q14_part_partkey_predicate_ha
   //   AND l_shipdate >= '1995-09-01'
   //   AND l_shipdate < '1995-10-01';
 
+  // column "partkey" of table "part" has the column id 0
+  // column "partkey" of table "lineitem" has the column id 1
+
+  const auto& storage_manager = StorageManager::get();
+  const auto& lineitem_table = storage_manager.get_table("lineitem");
+  const auto& part_table = storage_manager.get_table("part");
+  const auto& lineitem_table_wrapper = std::make_shared<TableWrapper>(lineitem_table);
+  const auto& part_table_wrapper = std::make_shared<TableWrapper>(part_table);
+  lineitem_table_wrapper->execute();
+  part_table_wrapper->execute();
+
   for (auto _ : state) {
-    // TODO(Marcel) implement
+    const auto hash_join =
+        std::make_shared<JoinHash>(part_table_wrapper, lineitem_table_wrapper, JoinMode::Inner,
+                                   OperatorJoinPredicate{{ColumnID{0}, ColumnID{1}}, PredicateCondition::Equals});
+    hash_join->execute();
   }
 }
 
-BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q14_part_partkey_predicate_index_join)(benchmark::State& state) {
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q14_part_partkey_predicate_nestedLoop_join)
+(benchmark::State& state) {
+  // column "partkey" of table "part" has the column id 0
+  // column "partkey" of table "lineitem" has the column id 1
+
+  const auto& storage_manager = StorageManager::get();
+  const auto& lineitem_table = storage_manager.get_table("lineitem");
+  const auto& part_table = storage_manager.get_table("part");
+  const auto& lineitem_table_wrapper = std::make_shared<TableWrapper>(lineitem_table);
+  const auto& part_table_wrapper = std::make_shared<TableWrapper>(part_table);
+  lineitem_table_wrapper->execute();
+  part_table_wrapper->execute();
+
   for (auto _ : state) {
-    // TODO(Marcel) implement
+    const auto nested_loop_join =
+        std::make_shared<JoinNestedLoop>(part_table_wrapper, lineitem_table_wrapper, JoinMode::Inner,
+                                         OperatorJoinPredicate{{ColumnID{0}, ColumnID{1}}, PredicateCondition::Equals});
+    nested_loop_join->execute();
   }
+}
+
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q14_part_partkey_predicate_groupKeyIndex_join)
+(benchmark::State& state) {
+  // column "partkey" of table "part" has the column id 0
+  // column "partkey" of table "lineitem" has the column id 1
+  const auto& storage_manager = StorageManager::get();
+
+  const std::vector<ColumnID>& part_index_column_ids = {ColumnID{0}};
+  const auto& part_table = storage_manager.get_table("part");
+  part_table->create_index<GroupKeyIndex>(part_index_column_ids);
+  const auto& part_table_wrapper = std::make_shared<TableWrapper>(part_table);
+  part_table_wrapper->execute();
+
+  const std::vector<ColumnID>& lineitem_index_column_ids = {ColumnID{1}};
+  const auto& lineitem_table = storage_manager.get_table("lineitem");
+  lineitem_table->create_index<GroupKeyIndex>(lineitem_index_column_ids);
+  const auto& lineitem_table_wrapper = std::make_shared<TableWrapper>(lineitem_table);
+  lineitem_table_wrapper->execute();
+
+  for (auto _ : state) {
+    const auto index_join =
+        std::make_shared<JoinIndex>(part_table_wrapper, lineitem_table_wrapper, JoinMode::Inner,
+                                    OperatorJoinPredicate{{ColumnID{0}, ColumnID{1}}, PredicateCondition::Equals});
+    index_join->execute();
+  }
+
+  remove_table_index(part_table, part_index_column_ids);
+  remove_table_index(lineitem_table, lineitem_index_column_ids);
+}
+
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q14_part_partkey_predicate_bTreeIndex_join)
+(benchmark::State& state) {
+  // column "partkey" of table "part" has the column id 0
+  // column "partkey" of table "lineitem" has the column id 1
+  const auto& storage_manager = StorageManager::get();
+
+  const std::vector<ColumnID>& part_index_column_ids = {ColumnID{0}};
+  const auto& part_table = storage_manager.get_table("part");
+  part_table->create_index<BTreeIndex>(part_index_column_ids);
+  const auto& part_table_wrapper = std::make_shared<TableWrapper>(part_table);
+  part_table_wrapper->execute();
+
+  const std::vector<ColumnID>& lineitem_index_column_ids = {ColumnID{1}};
+  const auto& lineitem_table = storage_manager.get_table("lineitem");
+  lineitem_table->create_index<BTreeIndex>(lineitem_index_column_ids);
+  const auto& lineitem_table_wrapper = std::make_shared<TableWrapper>(lineitem_table);
+  lineitem_table_wrapper->execute();
+
+  for (auto _ : state) {
+    const auto index_join =
+        std::make_shared<JoinIndex>(part_table_wrapper, lineitem_table_wrapper, JoinMode::Inner,
+                                    OperatorJoinPredicate{{ColumnID{0}, ColumnID{1}}, PredicateCondition::Equals});
+    index_join->execute();
+  }
+
+  remove_table_index(part_table, part_index_column_ids);
+  remove_table_index(lineitem_table, lineitem_index_column_ids);
 }
 
 BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCHQ6FirstScanPredicate)(benchmark::State& state) {
