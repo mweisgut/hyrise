@@ -27,8 +27,7 @@ Only indices of type `GroupKeyIndex` exist for column `l_partkey` of table `line
 uses a `JoinIndex` operator to join tables `part` and `lineitem` with join predicate `l_partkey = p_partkey`.  
 Only indices of type `BTreeIndex` exist for column `l_partkey` of table `lineitem` and for column `p_partkey` of table `part`.
 
-### Benchmark Results
-Used flags:
+#### Used Flags
 ```
 -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 -DENABLE_JIT_SUPPORT=OFF
@@ -36,6 +35,7 @@ Used flags:
 -DCMAKE_BUILD_TYPE=Release
 ```
 
+#### Benchmark Results
 ```
 Running ./hyriseMicroBenchmarks
 Run on (32 X 2500 MHz CPU s)
