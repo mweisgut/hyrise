@@ -26,6 +26,8 @@
 #include "storage/table.hpp"
 #include "tpch/tpch_table_generator.hpp"
 
+//#define DEBUG
+
 using namespace opossum::expression_functional;  // NOLINT
 
 namespace opossum {
@@ -269,13 +271,15 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_pPartkey_psPartkey_hash_join)
   const auto& left_table = storage_manager.get_table(left_table_name);
   const auto& left_table_wrapper = std::make_shared<TableWrapper>(left_table);
   left_table_wrapper->execute();
+#ifdef DEBUG
   print_table_row_count(left_table_name);
-
+#endif
   const auto& right_table = storage_manager.get_table(right_table_name);
   const auto& right_table_wrapper = std::make_shared<TableWrapper>(right_table);
   right_table_wrapper->execute();
+#ifdef DEBUG
   print_table_row_count(right_table_name);
-
+#endif
   for (auto _ : state) {
     const auto hash_join = std::make_shared<JoinHash>(
         left_table_wrapper, right_table_wrapper, JoinMode::Inner,
@@ -296,19 +300,23 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_psPartkey_lPartkey_hash_join)
   const auto& left_table = storage_manager.get_table(left_table_name);
   const auto& left_table_wrapper = std::make_shared<TableWrapper>(left_table);
   left_table_wrapper->execute();
+#ifdef DEBUG
   print_table_row_count(left_table_name);
-
+#endif
   const auto& right_table = storage_manager.get_table(right_table_name);
   const auto& right_table_wrapper = std::make_shared<TableWrapper>(right_table);
   right_table_wrapper->execute();
+#ifdef DEBUG
   print_table_row_count(right_table_name);
-
+#endif
   for (auto _ : state) {
     const auto hash_join = std::make_shared<JoinHash>(
         left_table_wrapper, right_table_wrapper, JoinMode::Inner,
         OperatorJoinPredicate{{left_column_id, right_column_id}, PredicateCondition::Equals});
     hash_join->execute();
+#ifdef DEBUG
     std::cout << "join result table: " << hash_join->get_output()->row_count() << " rows" << std::endl;
+#endif
   }
 }
 
@@ -323,19 +331,23 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_pPartkey_lPartkey_hash_join)(
   const auto& left_table = storage_manager.get_table(left_table_name);
   const auto& left_table_wrapper = std::make_shared<TableWrapper>(left_table);
   left_table_wrapper->execute();
+#ifdef DEBUG
   print_table_row_count(left_table_name);
-
+#endif
   const auto& right_table = storage_manager.get_table(right_table_name);
   const auto& right_table_wrapper = std::make_shared<TableWrapper>(right_table);
   right_table_wrapper->execute();
+#ifdef DEBUG
   print_table_row_count(right_table_name);
-
+#endif
   for (auto _ : state) {
     const auto hash_join = std::make_shared<JoinHash>(
         left_table_wrapper, right_table_wrapper, JoinMode::Inner,
         OperatorJoinPredicate{{left_column_id, right_column_id}, PredicateCondition::Equals});
     hash_join->execute();
+#ifdef DEBUG
     std::cout << "join result table: " << hash_join->get_output()->row_count() << " rows" << std::endl;
+#endif
   }
 }
 
@@ -352,21 +364,25 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_pPartkey_lPartkey_groupKeyInd
   left_table->create_index<GroupKeyIndex>({left_column_id});
   const auto& left_table_wrapper = std::make_shared<TableWrapper>(left_table);
   left_table_wrapper->execute();
+#ifdef DEBUG
   print_table_row_count(left_table_name);
-
+#endif
   const auto& right_table = storage_manager.get_table(right_table_name);
   right_table->create_index<GroupKeyIndex>({right_column_id});
   const auto& right_table_wrapper = std::make_shared<TableWrapper>(right_table);
   right_table_wrapper->execute();
+#ifdef DEBUG
   print_table_row_count(right_table_name);
+#endif
 
   for (auto _ : state) {
     const auto index_join = std::make_shared<JoinIndex>(
         left_table_wrapper, right_table_wrapper, JoinMode::Inner,
         OperatorJoinPredicate{{left_column_id, right_column_id}, PredicateCondition::Equals});
     index_join->execute();
-
+#ifdef DEBUG
     std::cout << "join result table: " << index_join->get_output()->row_count() << " rows" << std::endl;
+#endif
   }
 }
 
@@ -383,8 +399,9 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_pPartkey_lPartkey_bTreeIndex_
   left_table->create_index<BTreeIndex>({left_column_id});
   const auto& left_table_wrapper = std::make_shared<TableWrapper>(left_table);
   left_table_wrapper->execute();
+#ifdef DEBUG
   print_table_row_count(left_table_name);
-
+#endif
   const auto& right_table = storage_manager.get_table(right_table_name);
   right_table->create_index<BTreeIndex>({right_column_id});
   const auto& right_table_wrapper = std::make_shared<TableWrapper>(right_table);
@@ -396,68 +413,158 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_pPartkey_lPartkey_bTreeIndex_
         left_table_wrapper, right_table_wrapper, JoinMode::Inner,
         OperatorJoinPredicate{{left_column_id, right_column_id}, PredicateCondition::Equals});
     index_join->execute();
-
+#ifdef DEBUG
     std::cout << "join result table: " << index_join->get_output()->row_count() << " rows" << std::endl;
+#endif
   }
 }
 
-//BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q14_hash_join)(benchmark::State& state) {
-//  // SELECT 100.00 * SUM(case when p_type like 'PROMO%' then l_extendedprice*(1.0-l_discount) else 0 end) /
-//  //   SUM(l_extendedprice * (1.0 - l_discount)) as promo_revenue
-//  // FROM lineitem, "part"
-//  // WHERE l_partkey = p_partkey
-//  // AND l_shipdate >= '1995-09-01'
-//  // AND l_shipdate < '1995-10-01';
-//  const auto& p_partkey_column_id = ColumnID{0};
-//  const auto& l_partkey_column_id = ColumnID{1};
-//  const auto& l_shipdate_column_id = ColumnID{10};
-//  const std::vector<ColumnID>& lineitem_index_column_ids = {l_shipdate_column_id};
-//
-//  const auto& storage_manager = StorageManager::get();
-//
-//  const auto& part_table = storage_manager.get_table("part");
-//  const auto& part_table_wrapper = std::make_shared<TableWrapper>(part_table);
-//  part_table_wrapper->execute();
-//  print_table_row_count("part");
-//
-//  const auto& lineitem_table = storage_manager.get_table("lineitem");
-//  lineitem_table->create_index<GroupKeyIndex>(lineitem_index_column_ids);
-//  const auto& lineitem_table_wrapper = std::make_shared<TableWrapper>(lineitem_table);
-//  lineitem_table_wrapper->execute();
-//  print_table_row_count("lineitem");
-//
-//  const auto& right_values_shipdate_gte = std::vector<AllTypeVariant>{AllTypeVariant{"1995-09-01"}};
-//
-//  const auto index_scan_shipdate_gte =
-//      std::make_shared<IndexScan>(lineitem_table_wrapper, SegmentIndexType::GroupKey, lineitem_index_column_ids,
-//                                  PredicateCondition::GreaterThanEquals, right_values_shipdate_gte);
-//  index_scan_shipdate_gte->execute();
-//
-//  const auto& table_scanned_gte = std::make_shared<Table>(std::move(*index_scan_shipdate_gte->get_output()));
-//  std::cout << "intermediate table 1: " << table_scanned_gte->row_count() << " rows" << std::endl;
-//  table_scanned_gte->create_index<GroupKeyIndex>(lineitem_index_column_ids);
-//  const auto& table_scanned_gte_wrapper = std::make_shared<TableWrapper>(table_scanned_gte);
-//
-//  const auto& right_values_shipdate_le = std::vector<AllTypeVariant>{AllTypeVariant{"1995-10-01"}};
-//
-//  const auto index_scan_shipdate_le =
-//      std::make_shared<IndexScan>(table_scanned_gte_wrapper, SegmentIndexType::GroupKey, lineitem_index_column_ids,
-//                                            PredicateCondition::LessThan, right_values_shipdate_le);
-//  index_scan_shipdate_le->execute();
-//
-//  const auto& table_scanned_le = std::make_shared<Table>(std::move(*index_scan_shipdate_le->get_output()));
-//  std::cout << "intermediate table 2: " << table_scanned_le->row_count() << " rows" << std::endl;
-//  table_scanned_le->create_index<GroupKeyIndex>(lineitem_index_column_ids);
-//  const auto& table_scanned_le_wrapper = std::make_shared<TableWrapper>(table_scanned_le);
-//
-//  for (auto _ : state) {
-//    const auto hash_join = std::make_shared<JoinHash>(
-//        part_table_wrapper, table_scanned_le_wrapper, JoinMode::Inner,
-//        OperatorJoinPredicate{{p_partkey_column_id, l_partkey_column_id}, PredicateCondition::Equals});
-//    hash_join->execute();
-//    std::cout << "join result table: " << hash_join->get_output()->row_count() << " rows" << std::endl;
-//  }
-//}
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q14_hash_join)(benchmark::State& state) {
+  // SELECT 100.00 * SUM(case when p_type like 'PROMO%' then l_extendedprice*(1.0-l_discount) else 0 end) /
+  //   SUM(l_extendedprice * (1.0 - l_discount)) as promo_revenue
+  // FROM lineitem, "part"
+  // WHERE l_partkey = p_partkey
+  // AND l_shipdate >= '1995-09-01'
+  // AND l_shipdate < '1995-10-01';
+  const auto& p_partkey_column_id = ColumnID{0};
+  const auto& l_partkey_column_id = ColumnID{1};
+  const auto& l_shipdate_column_id = ColumnID{10};
+  const std::vector<ColumnID>& part_index_column_ids = {p_partkey_column_id};
+
+  const auto& storage_manager = StorageManager::get();
+
+  const auto& part_table = storage_manager.get_table("part");
+  const auto& part_table_wrapper = std::make_shared<TableWrapper>(part_table);
+  part_table_wrapper->execute();
+#ifdef DEBUG
+  print_table_row_count("part");
+#endif
+  const auto& lineitem_table = storage_manager.get_table("lineitem");
+  const auto& lineitem_table_wrapper = std::make_shared<TableWrapper>(lineitem_table);
+  lineitem_table_wrapper->execute();
+#ifdef DEBUG
+  print_table_row_count("lineitem");
+#endif
+
+  // index scan shipdate >= '1995-09-01'
+  const auto& shipdate_pqp_column = pqp_column_(l_shipdate_column_id, lineitem_table->column_data_type(ColumnID{10}),
+                                                lineitem_table->column_is_nullable(ColumnID{10}), "");
+  const auto& shipdate_gte_predicate = std::make_shared<BinaryPredicateExpression>(
+      PredicateCondition::GreaterThanEquals, shipdate_pqp_column, value_("1995-09-01"));
+
+  const auto& table_scan_shipdate_gte = std::make_shared<TableScan>(lineitem_table_wrapper, shipdate_gte_predicate);
+  table_scan_shipdate_gte->execute();
+
+  const auto& table_scanned_gte = std::const_pointer_cast<Table>(table_scan_shipdate_gte->get_output());
+#ifdef DEBUG
+  std::cout << "intermediate table 1: " << table_scanned_gte->row_count() << " rows" << std::endl;
+#endif
+  const auto& table_scanned_gte_wrapper = std::make_shared<TableWrapper>(table_scanned_gte);
+  table_scanned_gte_wrapper->execute();
+
+  // table scan shipdate < '1995-10-01'
+  const auto& lineitem_scanned_shipdate_gte_pqp_column =
+      pqp_column_(l_shipdate_column_id, table_scanned_gte->column_data_type(ColumnID{10}),
+                  table_scanned_gte->column_is_nullable(ColumnID{10}), "");
+  const auto& shipdate_lt_predicate = std::make_shared<BinaryPredicateExpression>(
+      PredicateCondition::LessThan, lineitem_scanned_shipdate_gte_pqp_column, value_("1995-10-01"));
+
+  const auto& table_scan_shipdate_lt = std::make_shared<TableScan>(table_scanned_gte_wrapper, shipdate_lt_predicate);
+  table_scan_shipdate_lt->execute();
+
+  const auto& table_scanned_le = std::const_pointer_cast<Table>(table_scan_shipdate_lt->get_output());
+#ifdef DEBUG
+  std::cout << "intermediate table 2: " << table_scanned_le->row_count() << " rows" << std::endl;
+#endif
+  const auto& table_scanned_le_wrapper = std::make_shared<TableWrapper>(table_scanned_le);
+  table_scanned_le_wrapper->execute();
+
+  // hash join
+
+  for (auto _ : state) {
+    const auto hash_join = std::make_shared<JoinHash>(
+        table_scanned_le_wrapper, part_table_wrapper, JoinMode::Inner,
+        OperatorJoinPredicate{{l_partkey_column_id, p_partkey_column_id}, PredicateCondition::Equals});
+    hash_join->execute();
+#ifdef DEBUG
+    std::cout << "join result table: " << hash_join->get_output()->row_count() << " rows" << std::endl;
+#endif
+  }
+}
+
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_Q14_index_join)(benchmark::State& state) {
+  // SELECT 100.00 * SUM(case when p_type like 'PROMO%' then l_extendedprice*(1.0-l_discount) else 0 end) /
+  //   SUM(l_extendedprice * (1.0 - l_discount)) as promo_revenue
+  // FROM lineitem, "part"
+  // WHERE l_partkey = p_partkey
+  // AND l_shipdate >= '1995-09-01'
+  // AND l_shipdate < '1995-10-01';
+  const auto& p_partkey_column_id = ColumnID{0};
+  const auto& l_partkey_column_id = ColumnID{1};
+  const auto& l_shipdate_column_id = ColumnID{10};
+  const std::vector<ColumnID>& part_index_column_ids = {p_partkey_column_id};
+
+  const auto& storage_manager = StorageManager::get();
+
+  const auto& part_table = storage_manager.get_table("part");
+  part_table->create_index<GroupKeyIndex>(part_index_column_ids);
+  const auto& part_table_wrapper = std::make_shared<TableWrapper>(part_table);
+  part_table_wrapper->execute();
+#ifdef DEBUG
+  print_table_row_count("part");
+#endif
+  const auto& lineitem_table = storage_manager.get_table("lineitem");
+  const auto& lineitem_table_wrapper = std::make_shared<TableWrapper>(lineitem_table);
+  lineitem_table_wrapper->execute();
+#ifdef DEBUG
+  print_table_row_count("lineitem");
+#endif
+
+  // index scan shipdate >= '1995-09-01'
+  const auto& shipdate_pqp_column = pqp_column_(l_shipdate_column_id, lineitem_table->column_data_type(ColumnID{10}),
+                                                lineitem_table->column_is_nullable(ColumnID{10}), "");
+  const auto& shipdate_gte_predicate = std::make_shared<BinaryPredicateExpression>(
+      PredicateCondition::GreaterThanEquals, shipdate_pqp_column, value_("1995-09-01"));
+
+  const auto& table_scan_shipdate_gte = std::make_shared<TableScan>(lineitem_table_wrapper, shipdate_gte_predicate);
+  table_scan_shipdate_gte->execute();
+
+  const auto& table_scanned_gte = std::const_pointer_cast<Table>(table_scan_shipdate_gte->get_output());
+#ifdef DEBUG
+  std::cout << "intermediate table 1: " << table_scanned_gte->row_count() << " rows" << std::endl;
+#endif
+  const auto& table_scanned_gte_wrapper = std::make_shared<TableWrapper>(table_scanned_gte);
+  table_scanned_gte_wrapper->execute();
+
+  // table scan shipdate < '1995-10-01'
+  const auto& lineitem_scanned_shipdate_gte_pqp_column =
+      pqp_column_(l_shipdate_column_id, table_scanned_gte->column_data_type(ColumnID{10}),
+                  table_scanned_gte->column_is_nullable(ColumnID{10}), "");
+  const auto& shipdate_lt_predicate = std::make_shared<BinaryPredicateExpression>(
+      PredicateCondition::LessThan, lineitem_scanned_shipdate_gte_pqp_column, value_("1995-10-01"));
+
+  const auto& table_scan_shipdate_lt = std::make_shared<TableScan>(table_scanned_gte_wrapper, shipdate_lt_predicate);
+  table_scan_shipdate_lt->execute();
+
+  const auto& table_scanned_le = std::const_pointer_cast<Table>(table_scan_shipdate_lt->get_output());
+#ifdef DEBUG
+  std::cout << "intermediate table 2: " << table_scanned_le->row_count() << " rows" << std::endl;
+#endif
+  const auto& table_scanned_le_wrapper = std::make_shared<TableWrapper>(table_scanned_le);
+  table_scanned_le_wrapper->execute();
+
+  // hash join
+
+  for (auto _ : state) {
+    const auto index_join = std::make_shared<JoinIndex>(
+        table_scanned_le_wrapper, part_table_wrapper, JoinMode::Inner,
+        OperatorJoinPredicate{{l_partkey_column_id, p_partkey_column_id}, PredicateCondition::Equals});
+    index_join->execute();
+#ifdef DEBUG
+    std::cout << "join result table: " << index_join->get_output()->row_count() << " rows" << std::endl;
+#endif
+  }
+}
 
 BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCHQ6FirstScanPredicate)(benchmark::State& state) {
   for (auto _ : state) {

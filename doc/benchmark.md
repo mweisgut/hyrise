@@ -140,4 +140,59 @@ part row count: 200000
 TPCHDataMicroBenchmarkFixture/BM_TPCH_Q14_part_partkey_predicate_bTreeIndex_join             1720819950 ns 1720719245 ns          1
 ```
 
-Query 14 (with query id 13) returns 42 rows
+### Further Benachmark Plans
+- Index scan that returns a very low amount of tuples
+  - qualifying tuple at the beginning of the table
+  - qualifying tuple at the end of the table
+- Index join: filter the left table and join it with a right, unfiltered table
+
+
+##### Index Join Q14
+
+- left input: filtered lineitem table (`l_shipdate >= '1995-09-01' AND l_shipdate < '1995-10-01'`; 75'983 rows)
+- right input: part table (200'000 rows)
+- result table: 75'983 rows (each lineitem of the filtered lineitem table qualifies)  
+
+```
+  Running ./hyriseMicroBenchmarks
+Run on (32 X 2500 MHz CPU s)
+CPU Caches:
+  L1 Data 32K (x32)
+  L1 Instruction 32K (x32)
+  L2 Unified 256K (x32)
+  L3 Unified 25600K (x32)
+Generating TPC-H data set with scale factor 1 and Dictionary encoding:
+- Loading/Generating tables
+- Loading/Generating tables done (17 s 764 ms)
+- Encoding tables if necessary
+-  Encoding 'nation' - encoding applied (777 µs 462 ns)
+-  Encoding 'orders' - encoding applied (615 ms 522 µs)
+-  Encoding 'region' - encoding applied (689 µs 457 ns)
+-  Encoding 'part' - encoding applied (444 ms 589 µs)
+-  Encoding 'lineitem' - encoding applied (1 s 568 ms)
+-  Encoding 'partsupp' - encoding applied (426 ms 240 µs)
+-  Encoding 'customer' - encoding applied (575 ms 63 µs)
+-  Encoding 'supplier' - encoding applied (47 ms 235 µs)
+- Encoding tables done (3 s 680 ms)
+- Adding Tables to StorageManager and generating statistics
+-  Adding 'nation' (137 µs 293 ns)
+-  Adding 'orders' (2 s 244 ms)
+-  Adding 'region' (47 µs 345 ns)
+-  Adding 'part' (273 ms 300 µs)
+-  Adding 'lineitem' (10 s 269 ms)
+-  Adding 'partsupp' (1 s 173 ms)
+-  Adding 'customer' (296 ms 538 µs)
+-  Adding 'supplier' (15 ms 881 µs)
+- Adding Tables to StorageManager and generating statistics done (14 s 272 ms)
+intermediate table 1: 2817779 rows
+intermediate table 2: 75983 rows
+intermediate table 1: 2817779 rows
+intermediate table 2: 75983 rows
+intermediate table 1: 2817779 rows
+intermediate table 2: 75983 rows
+--------------------------------------------------------------------------------------------
+Benchmark                                                     Time           CPU Iterations
+--------------------------------------------------------------------------------------------
+TPCHDataMicroBenchmarkFixture/BM_TPCH_Q14_hash_join    13966819 ns   13966645 ns         48
+TPCHDataMicroBenchmarkFixture/BM_TPCH_Q14_index_join   59771037 ns   59771111 ns         10
+  ```
