@@ -238,6 +238,29 @@ TPCHDataMicroBenchmarkFixture/BM_TPCH_filtered_part_with_lineitem_hash_join   11
 TPCHDataMicroBenchmarkFixture/BM_TPCH_filtered_part_with_lineitem_index_join     123135 ns     123134 ns       5895
 ```
 
+#### Join: reduced PART with reduced LINEITEM
+In this benchmark, first table PART is reduced by a scan.
+This leads to an intermediate result table with only 3 rows (filter predicate: `p_partkey <= 3`).
+Let this intermediate table be `REDUCED_PART`.
+Additionally, let `REDUCED_LINEITEM` be a reduced LINEITEM table.
+It only contains tuples of the original table where `l_shipdate >= '1995-09-01' AND l_shipdate < '1995-10-01'`.
+`REDUCED_PART` is then joined with table `REDUCED_LINEITEM` using the join predicate `p_partkey = l_partkey`.
+`REDUCED_LINEITEM` has indices for column `l_shipdate`.
+
+The result below shows that the JoinIndex is a factor of **95,738** faster than the JoinHash.
+
+- reduced part table (left join input): 3 rows
+- reduced lineitem table (right join input): 75'983 rows
+- join result table: 1 row
+
+```
+--------------------------------------------------------------------------------------------------------------------------
+Benchmark                                                                                   Time           CPU Iterations
+--------------------------------------------------------------------------------------------------------------------------
+TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_hash_join     1009670 ns    1009656 ns        680
+TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_index_join      10546 ns      10546 ns      67742
+```
+
 #### Scan: `LINEITEM` | `l_orderkey = 1`
 - lineitem table: 6'001'215 rows
 - result table: 6 rows
