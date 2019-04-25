@@ -218,6 +218,12 @@ void JoinIndex::_perform_join_right_reference_table() {
     }
     std::sort(input_right_table_positions.begin(), input_right_table_positions.end());
 
+    _pos_list_left = std::make_shared<PosList>();
+    _pos_list_right = std::make_shared<PosList>();
+
+    _pos_list_left->reserve(input_right_table_positions.size());
+    _pos_list_right->reserve(input_right_table_positions.size());
+
     //  iterate over the left join column
     //    for each value vl of that column:
     //      execute an index scan on the referenced_data_table
@@ -253,7 +259,6 @@ void JoinIndex::_perform_join_right_reference_table() {
             auto right_data_table_matches = _matches_of_reference_table(index_scan_on_data_table->get_output());
 
             std::sort(right_data_table_matches->begin(), right_data_table_matches->end());
-
             auto input_right_table_matches = PosList{};
 
             std::set_intersection(input_right_table_positions.begin(), input_right_table_positions.end(),
@@ -263,7 +268,6 @@ void JoinIndex::_perform_join_right_reference_table() {
             ++left_chunk_offset;
           }
         });
-        std::cout << "chunk offset: " << left_chunk_offset << "\n";
       });
       ++left_chunk_id;
     }
@@ -272,7 +276,7 @@ void JoinIndex::_perform_join_right_reference_table() {
     Segments output_segments;
 
     _write_output_segments(output_segments, input_table_left(), _pos_list_left);
-    _write_output_segments(output_segments, input_table_right(), _pos_list_right);
+    _write_output_segments(output_segments, input_table_right(), _pos_list_right, false);
 
     _output_table->append_chunk(output_segments);
   }
@@ -421,7 +425,7 @@ void JoinIndex::_append_matches(const BaseIndex::Iterator& range_begin, const Ba
 }
 
 void JoinIndex::_write_output_segments(Segments& output_segments, const std::shared_ptr<const Table>& input_table,
-                                       std::shared_ptr<PosList> pos_list) {
+                                       std::shared_ptr<PosList> pos_list, bool row_id_correction) {
   // Add segments from table to output chunk
   for (ColumnID column_id{0}; column_id < input_table->column_count(); ++column_id) {
     std::shared_ptr<BaseSegment> segment;
@@ -435,23 +439,27 @@ void JoinIndex::_write_output_segments(Segments& output_segments, const std::sha
         auto reference_segment = std::static_pointer_cast<const ReferenceSegment>(
             input_table->get_chunk(ChunkID{0})->get_segment(column_id));
 
-        // de-reference to the correct RowID so the output can be used in a Multi Join
-        for (const auto& row : *pos_list) {
-          if (row.is_null()) {
-            new_pos_list->push_back(NULL_ROW_ID);
-            continue;
-          }
-          if (row.chunk_id != current_chunk_id) {
-            current_chunk_id = row.chunk_id;
+        if (row_id_correction) {
+          // de-reference to the correct RowID so the output can be used in a Multi Join
+          for (const auto& row : *pos_list) {
+            if (row.is_null()) {
+              new_pos_list->push_back(NULL_ROW_ID);
+              continue;
+            }
+            if (row.chunk_id != current_chunk_id) {
+              current_chunk_id = row.chunk_id;
 
-            reference_segment = std::dynamic_pointer_cast<const ReferenceSegment>(
-                input_table->get_chunk(current_chunk_id)->get_segment(column_id));
+              reference_segment = std::dynamic_pointer_cast<const ReferenceSegment>(
+                  input_table->get_chunk(current_chunk_id)->get_segment(column_id));
+            }
+            new_pos_list->push_back((*reference_segment->pos_list())[row.chunk_offset]);
           }
-          new_pos_list->push_back((*reference_segment->pos_list())[row.chunk_offset]);
+          segment = std::make_shared<ReferenceSegment>(reference_segment->referenced_table(),
+                                                       reference_segment->referenced_column_id(), new_pos_list);
         }
 
         segment = std::make_shared<ReferenceSegment>(reference_segment->referenced_table(),
-                                                     reference_segment->referenced_column_id(), new_pos_list);
+                                                     reference_segment->referenced_column_id(), pos_list);
       } else {
         // If there are no Chunks in the input_table, we can't deduce the Table that input_table is referencing to.
         // pos_list will contain only NULL_ROW_IDs anyway, so it doesn't matter which Table the ReferenceSegment that

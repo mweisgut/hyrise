@@ -25,8 +25,8 @@
 #include "storage/storage_manager.hpp"
 #include "tpch/tpch_table_generator.hpp"
 
-// #define DEBUG
-// #define PRINT_TABLE
+//#define DEBUG
+//#define PRINT_TABLE
 
 using namespace opossum::expression_functional;  // NOLINT
 
@@ -39,7 +39,7 @@ class TPCHDataMicroBenchmarkFixture : public MicroBenchmarkBasicFixture {
  public:
   void SetUp(::benchmark::State& state) {
     auto& sm = StorageManager::get();
-    const auto scale_factor = 0.001f;
+    const auto scale_factor = 1.0f;
     const auto default_encoding = EncodingType::Dictionary;
 
     auto benchmark_config = BenchmarkConfig::get_default_config();
@@ -114,10 +114,12 @@ class TPCHDataMicroBenchmarkFixture : public MicroBenchmarkBasicFixture {
     return wrapper_map;
   }
 
-  void print_table_row_count(const std::string& table_name) {
+  void print_table_info(const std::string& table_name) {
     const auto& table_wrapper = _table_wrapper_map.at(table_name);
     if (table_wrapper != nullptr && table_wrapper->get_output() != nullptr) {
       std::cout << table_name << ": " << table_wrapper->get_output()->row_count() << " rows" << std::endl;
+      std::cout << table_name << ": " << table_wrapper->get_output()->chunk_count() << " chunks" << std::endl;
+      std::cout << table_name << ": " << table_wrapper->get_output()->column_count() << " columns" << std::endl;
     }
   }
 
@@ -199,9 +201,9 @@ void TPCHDataMicroBenchmarkFixture::setup_join_tables_reduced_part_and_reduced_l
   part_table_wrapper->execute();
 
 #ifdef DEBUG
-  print_table_row_count("part");
+  print_table_info("part");
 #ifdef PRINT_TABLE
-  Print::print(part_table, 0, std::cout);
+//  Print::print(part_table, 0, std::cout);
 #endif
 #endif
   const auto& lineitem_table = storage_manager.get_table("lineitem");
@@ -210,9 +212,9 @@ void TPCHDataMicroBenchmarkFixture::setup_join_tables_reduced_part_and_reduced_l
   lineitem_table_wrapper->execute();
 
 #ifdef DEBUG
-  print_table_row_count("lineitem");
+  print_table_info("lineitem");
 #ifdef PRINT_TABLE
-  Print::print(lineitem_table, 0, std::cout);
+//  Print::print(lineitem_table, 0, std::cout);
 #endif
 #endif
 
@@ -229,7 +231,7 @@ void TPCHDataMicroBenchmarkFixture::setup_join_tables_reduced_part_and_reduced_l
   const auto& left_table = std::const_pointer_cast<Table>(left_operator->get_output());
   std::cout << "part table (partkey <= 3): " << left_table->row_count() << " rows" << std::endl;
 #ifdef PRINT_TABLE
-  Print::print(left_table, 0, std::cout);
+//  Print::print(left_table, 0, std::cout);
 #endif
 #endif
 
@@ -247,7 +249,7 @@ void TPCHDataMicroBenchmarkFixture::setup_join_tables_reduced_part_and_reduced_l
 #ifdef DEBUG
   std::cout << "lineitem table (shipdate >= '1995-09-01'): " << table_scanned_gte->row_count() << " rows" << std::endl;
 #ifdef PRINT_TABLE
-  Print::print(table_scanned_gte, 0, std::cout);
+//  Print::print(table_scanned_gte, 0, std::cout);
 #endif
 #endif
 
@@ -266,7 +268,7 @@ void TPCHDataMicroBenchmarkFixture::setup_join_tables_reduced_part_and_reduced_l
   std::cout << "lineitem table (shipdate >= '1995-09-01' AND shipdate < '1995-10-01') " << right_table->row_count()
             << " rows" << std::endl;
 #ifdef PRINT_TABLE
-  Print::print(right_table, 0, std::cout);
+//  Print::print(right_table, 0, std::cout);
 #endif
 #endif
 }
@@ -315,7 +317,7 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_lineitem_reference_table_tabl
   std::cout << "lineitem table (shipdate >= '1995-09-01' AND shipdate < '1995-10-01') " << table_scanned_lt->row_count()
             << " rows" << std::endl;
 #ifdef PRINT_TABLE
-  Print::print(right_table, 0, std::cout);
+  Print::print(table_scanned_lt, 0, std::cout);
 #endif
 #endif
 }
@@ -362,7 +364,7 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_lineitem_reference_table_inde
   std::cout << "lineitem table (shipdate >= '1995-09-01' AND shipdate < '1995-10-01') " << table_scanned_lt->row_count()
             << " rows" << std::endl;
 #ifdef PRINT_TABLE
-  Print::print(right_table, 0, std::cout);
+  Print::print(table_scanned_lt, 0, std::cout);
 #endif
 #endif
 }
@@ -436,6 +438,9 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_reduced_part_and_reduced_line
 
 #ifdef DEBUG
   std::cout << "join result table: " << hash_join->get_output()->row_count() << " rows" << std::endl;
+#ifdef PRINT_TABLE
+  Print::print(hash_join->get_output());
+#endif
 #endif
 }
 
@@ -460,6 +465,9 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_reduced_part_and_reduced_line
 
 #ifdef DEBUG
   std::cout << "join result table: " << join_index->get_output()->row_count() << " rows" << std::endl;
+#ifdef PRINT_TABLE
+  Print::print(join_index->get_output());
+#endif
 #endif
 }
 
