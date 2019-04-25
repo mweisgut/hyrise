@@ -136,6 +136,8 @@ TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_referenc
 #### Second Attempt
 
 commit id: `67b7dae1450a66a85a804bb4dbebdddf9589b0e8`
+Scale Factor 1.0
+The IndexScan is **0,253471597** times faster than the table scan.
 
 ```
 2019-04-25 12:01:09
@@ -178,4 +180,49 @@ Benchmark                                                                       
 ------------------------------------------------------------------------------------------------------------------------------------------
 TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_hash_join    48209320 ns   48187412 ns         11
 TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_index_join  190173864 ns  190109711 ns          4
+```
+
+#### Third Attempt
+
+commit id: `87ee079d5df8934701d0d82ab6d892148fe28882`
+Scale Factor 10.0
+The IndexScan is **4,074700484** times faster than the table scan.
+
+```
+Running ./hyriseMicroBenchmarks
+Run on (80 X 2395 MHz CPU s)
+CPU Caches:
+  L1 Data 32K (x40)
+  L1 Instruction 32K (x40)
+  L2 Unified 256K (x40)
+  L3 Unified 30720K (x4)
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+Generating TPC-H data set with scale factor 10 and Dictionary encoding:
+- Loading/Generating tables 
+- Loading/Generating tables done (3 min 6 s)
+- Encoding tables if necessary
+-  Encoding 'nation' - encoding applied (1 ms 29 µs)
+-  Encoding 'orders' - encoding applied (2 s 849 ms)
+-  Encoding 'region' - encoding applied (5 ms 3 µs)
+-  Encoding 'part' - encoding applied (923 ms 311 µs)
+-  Encoding 'lineitem' - encoding applied (13 s 524 ms)
+-  Encoding 'partsupp' - encoding applied (2 s 138 ms)
+-  Encoding 'customer' - encoding applied (1 s 279 ms)
+-  Encoding 'supplier' - encoding applied (879 ms 904 µs)
+- Encoding tables done (21 s 599 ms)
+- Adding Tables to StorageManager and generating statistics 
+-  Adding 'nation' (259 µs 239 ns)
+-  Adding 'orders' (42 s 286 ms)
+-  Adding 'region' (116 µs 375 ns)
+-  Adding 'part' (4 s 796 ms)
+-  Adding 'lineitem' (2 min 32 s)
+-  Adding 'partsupp' (17 s 943 ms)
+-  Adding 'customer' (7 s 106 ms)
+-  Adding 'supplier' (300 ms 995 µs)
+- Adding Tables to StorageManager and generating statistics done (3 min 45 s)
+------------------------------------------------------------------------------------------------------------------------------------------
+Benchmark                                                                                                   Time           CPU Iterations
+------------------------------------------------------------------------------------------------------------------------------------------
+TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_hash_join   136170268 ns  136105460 ns          4
+TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_index_join   33417554 ns   33402568 ns         21
 ```
