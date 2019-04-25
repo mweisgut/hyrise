@@ -132,3 +132,50 @@ TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_referenc
 TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_index_join    2635585 ns    2635556 ns        259
 
 ```
+
+#### Second Attempt
+
+commit id: `67b7dae1450a66a85a804bb4dbebdddf9589b0e8`
+
+```
+2019-04-25 12:01:09
+Running ./hyriseMicroBenchmarks
+Run on (80 X 2395 MHz CPU s)
+CPU Caches:
+  L1 Data 32K (x40)
+  L1 Instruction 32K (x40)
+  L2 Unified 256K (x40)
+  L3 Unified 30720K (x4)
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+Generating TPC-H data set with scale factor 1 and Dictionary encoding:
+- Loading/Generating tables 
+- Loading/Generating tables done (1 min 37 s)
+- Encoding tables if necessary
+-  Encoding 'nation' - encoding applied (1 ms 499 µs)
+-  Encoding 'orders' - encoding applied (3 s 3 ms)
+-  Encoding 'region' - encoding applied (1 ms 49 µs)
+-  Encoding 'part' - encoding applied (2 s 971 ms)
+-  Encoding 'lineitem' - encoding applied (6 s 323 ms)
+-  Encoding 'partsupp' - encoding applied (1 s 467 ms)
+-  Encoding 'customer' - encoding applied (3 s 58 ms)
+-  Encoding 'supplier' - encoding applied (234 ms 844 µs)
+- Encoding tables done (17 s 60 ms)
+- Adding Tables to StorageManager and generating statistics 
+-  Adding 'nation' (571 µs 77 ns)
+-  Adding 'orders' (13 s 624 ms)
+-  Adding 'region' (231 µs 903 ns)
+-  Adding 'part' (1 s 847 ms)
+-  Adding 'lineitem' (1 min 9 s)
+-  Adding 'partsupp' (4 s 84 ms)
+-  Adding 'customer' (1 s 698 ms)
+-  Adding 'supplier' (99 ms 984 µs)
+- Adding Tables to StorageManager and generating statistics done (1 min 31 s)
+[PERF] Using type-erased accessor as the ReferenceSegmentIterable is type-erased itself at src/lib/storage/reference_segment/reference_segment_iterable.hpp:57
+        Performance can be affected. This warning is only shown once.
+
+------------------------------------------------------------------------------------------------------------------------------------------
+Benchmark                                                                                                   Time           CPU Iterations
+------------------------------------------------------------------------------------------------------------------------------------------
+TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_hash_join    48209320 ns   48187412 ns         11
+TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_index_join  190173864 ns  190109711 ns          4
+```
