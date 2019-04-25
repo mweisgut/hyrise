@@ -137,7 +137,7 @@ TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_referenc
 
 commit id: `67b7dae1450a66a85a804bb4dbebdddf9589b0e8`  
 Scale Factor 1.0  
-The IndexScan is **0,253471597** times faster than the table scan.
+The JoinIndex is **0,253471597** times faster than the JoinHash.
 
 ```
 2019-04-25 12:01:09
@@ -186,7 +186,7 @@ TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_referenc
 
 commit id: `87ee079d5df8934701d0d82ab6d892148fe28882`  
 Scale Factor 10.0  
-The IndexScan is **4,074700484** times faster than the table scan.
+The JoinIndex is **4,074700484** times faster than the JoinHash.
 
 ```
 Running ./hyriseMicroBenchmarks
