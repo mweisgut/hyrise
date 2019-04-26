@@ -25,8 +25,10 @@
 #include "storage/storage_manager.hpp"
 #include "tpch/tpch_table_generator.hpp"
 
-//#define DEBUG
-//#define PRINT_TABLE
+// #include <valgrind/callgrind.h>
+
+// #define DEBUG
+// #define PRINT_TABLE
 
 using namespace opossum::expression_functional;  // NOLINT
 
@@ -39,7 +41,7 @@ class TPCHDataMicroBenchmarkFixture : public MicroBenchmarkBasicFixture {
  public:
   void SetUp(::benchmark::State& state) {
     auto& sm = StorageManager::get();
-    const auto scale_factor = 10.0f;
+    const auto scale_factor = 1.0f;
     const auto default_encoding = EncodingType::Dictionary;
 
     auto benchmark_config = BenchmarkConfig::get_default_config();
@@ -460,7 +462,9 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_reduced_part_and_reduced_line
     join_index = std::make_shared<JoinIndex>(
         reduced_part_operator, reduced_lineitem_operator, JoinMode::Inner,
         OperatorJoinPredicate{{p_partkey_column_id, l_partkey_column_id}, PredicateCondition::Equals});
+    // CALLGRIND_START_INSTRUMENTATION;
     join_index->execute();
+    // CALLGRIND_STOP_INSTRUMENTATION;
   }
 
 #ifdef DEBUG

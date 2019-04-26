@@ -216,7 +216,14 @@ void JoinIndex::_perform_join_right_reference_table() {
                                            reference_segment_pos_list->end());
       }
     }
-    std::sort(input_right_table_positions.begin(), input_right_table_positions.end());
+
+    // std::cout << "input_right_table_positions sorted: ";
+    // std::cout << std::is_sorted(input_right_table_positions.begin(), input_right_table_positions.end()) << "\n";
+
+    // std::sort(input_right_table_positions.begin(), input_right_table_positions.end());
+
+    //    const auto first_row_id = input_right_table_positions.front();
+    //    const auto last_row_id = input_right_table_positions.back();
 
     _pos_list_left = std::make_shared<PosList>();
     _pos_list_right = std::make_shared<PosList>();
@@ -258,7 +265,10 @@ void JoinIndex::_perform_join_right_reference_table() {
             index_scan_on_data_table->execute();
             auto right_data_table_matches = _matches_of_reference_table(index_scan_on_data_table->get_output());
 
-            std::sort(right_data_table_matches->begin(), right_data_table_matches->end());
+            // std::cout << "right_data_table_matches sorted: ";
+            // std::cout << std::is_sorted(right_data_table_matches->begin(), right_data_table_matches->end()) << "\n";
+
+            // std::sort(right_data_table_matches->begin(), right_data_table_matches->end());
             auto input_right_table_matches = PosList{};
 
             std::set_intersection(input_right_table_positions.begin(), input_right_table_positions.end(),
@@ -291,7 +301,7 @@ std::shared_ptr<PosList> JoinIndex::_matches_of_reference_table(const std::share
       const auto& reference_segment = std::dynamic_pointer_cast<ReferenceSegment>(chunk->get_segment(ColumnID{0}));
       Assert(reference_segment != nullptr, "Segment is not a ReferenceSegment");
       const auto& segment_matches = reference_segment->pos_list();
-      matches->insert(matches->begin(), segment_matches->begin(), segment_matches->end());
+      matches->insert(matches->end(), segment_matches->begin(), segment_matches->end());
     }
   }
   return matches;
