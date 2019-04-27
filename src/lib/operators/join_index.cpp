@@ -220,7 +220,7 @@ void JoinIndex::_perform_join_right_reference_table() {
     // std::cout << "input_right_table_positions sorted: ";
     // std::cout << std::is_sorted(input_right_table_positions.begin(), input_right_table_positions.end()) << "\n";
 
-    // std::sort(input_right_table_positions.begin(), input_right_table_positions.end());
+    std::sort(input_right_table_positions.begin(), input_right_table_positions.end());
 
     //    const auto first_row_id = input_right_table_positions.front();
     //    const auto last_row_id = input_right_table_positions.back();
@@ -262,13 +262,15 @@ void JoinIndex::_perform_join_right_reference_table() {
             const auto& index_scan_on_data_table = std::make_shared<IndexScan>(
                 referenced_data_table_wrapper, SegmentIndexType::GroupKey, data_table_index_column_ids,
                 _primary_predicate.predicate_condition, right_values);
-            index_scan_on_data_table->execute();
-            auto right_data_table_matches = _matches_of_reference_table(index_scan_on_data_table->get_output());
+            auto right_data_table_matches = index_scan_on_data_table->execute_matches_calculation();
+
+            // the following line was used before introducing execut_positions_calculation
+            // auto right_data_table_matches = _matches_of_reference_table(index_scan_on_data_table->get_output());
 
             // std::cout << "right_data_table_matches sorted: ";
             // std::cout << std::is_sorted(right_data_table_matches->begin(), right_data_table_matches->end()) << "\n";
 
-            // std::sort(right_data_table_matches->begin(), right_data_table_matches->end());
+            std::sort(right_data_table_matches->begin(), right_data_table_matches->end());
             auto input_right_table_matches = PosList{};
 
             std::set_intersection(input_right_table_positions.begin(), input_right_table_positions.end(),

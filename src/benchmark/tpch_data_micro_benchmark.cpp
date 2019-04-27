@@ -25,7 +25,7 @@
 #include "storage/storage_manager.hpp"
 #include "tpch/tpch_table_generator.hpp"
 
-// #include <valgrind/callgrind.h>
+#include <valgrind/callgrind.h>
 
 // #define DEBUG
 // #define PRINT_TABLE
@@ -462,9 +462,9 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_reduced_part_and_reduced_line
     join_index = std::make_shared<JoinIndex>(
         reduced_part_operator, reduced_lineitem_operator, JoinMode::Inner,
         OperatorJoinPredicate{{p_partkey_column_id, l_partkey_column_id}, PredicateCondition::Equals});
-    // CALLGRIND_START_INSTRUMENTATION;
+    CALLGRIND_START_INSTRUMENTATION;
     join_index->execute();
-    // CALLGRIND_STOP_INSTRUMENTATION;
+    CALLGRIND_STOP_INSTRUMENTATION;
   }
 
 #ifdef DEBUG
