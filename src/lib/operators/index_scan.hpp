@@ -50,7 +50,8 @@ class IndexScan : public AbstractReadOnlyOperator {
   void _execute_on_data_table();
   void _execute_on_reference_table();
   std::shared_ptr<AbstractTask> _create_job_and_schedule(const ChunkID chunk_id, std::mutex& output_mutex);
-  std::shared_ptr<AbstractTask> _create_job_and_schedule_matches_calculation(const ChunkID chunk_id, std::mutex& output_mutex);
+  std::shared_ptr<AbstractTask> _create_job_and_schedule_matches_calculation(const ChunkID chunk_id,
+                                                                             std::mutex& output_mutex);
   PosList _scan_chunk(const ChunkID chunk_id, std::shared_ptr<const Table> referenced_data_table = nullptr);
 
  private:

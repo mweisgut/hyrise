@@ -29,13 +29,13 @@ const std::string IndexScan::name() const { return "IndexScan"; }
 
 void IndexScan::set_included_chunk_ids(const std::vector<ChunkID>& chunk_ids) { _included_chunk_ids = chunk_ids; }
 
-std::shared_ptr<PosList>  IndexScan::execute_matches_calculation(){
+std::shared_ptr<PosList> IndexScan::execute_matches_calculation() {
   _in_table = input_table_left();
 
   _validate_input();
 
   Assert(_in_table->type() == TableType::Data, "Partial execution is only supported for data tables.");
-  
+
   // _execute_on_data_table();
 
   _matches = std::make_shared<PosList>();
@@ -193,11 +193,12 @@ std::shared_ptr<AbstractTask> IndexScan::_create_job_and_schedule(const ChunkID 
   return job_task;
 }
 
-std::shared_ptr<AbstractTask> IndexScan::_create_job_and_schedule_matches_calculation(const ChunkID chunk_id, std::mutex& output_mutex) {
+std::shared_ptr<AbstractTask> IndexScan::_create_job_and_schedule_matches_calculation(const ChunkID chunk_id,
+                                                                                      std::mutex& output_mutex) {
   auto job_task = std::make_shared<JobTask>([=, &output_mutex]() {
     const auto matches_in_chunk = std::make_shared<PosList>(_scan_chunk(chunk_id));
-  std::lock_guard<std::mutex> lock(output_mutex);
-  _matches->insert(_matches->end(), matches_in_chunk->begin(), matches_in_chunk->end());
+    std::lock_guard<std::mutex> lock(output_mutex);
+    _matches->insert(_matches->end(), matches_in_chunk->begin(), matches_in_chunk->end());
   });
 
   job_task->schedule();
