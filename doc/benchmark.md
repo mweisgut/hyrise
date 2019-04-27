@@ -64,7 +64,6 @@ the JoinIndex is a factor of **1,0997** faster than the JoinHash.
 reduced part table (left join input): 3 rows  
 reduced lineitem table (right join input): 75'983 rows  
 join result table: 1 row  
-In this benchmark, first table  
 
 **We should investigate the message** `[PERF] Only 0 of 61 chunks scanned using an index at src/lib/operators/join_index.cpp:173`.
 
@@ -233,7 +232,7 @@ commit id: `e0b9a287d5eb3ac16916f50c63746cac4b97d832`
 Scale Factor 1.0  
 The JoinIndex is **2,6892** times faster than the JoinHash.
 
-Modifications since the previous experimant:
+Modifications since the previous experiment:
 In this version, the concatinated PosList for the reduced lineitem table and the concatineted PosList for the matches in the lineitem table are not sorted, since they are already sorted when the execution is single threaded.
 
 ```
@@ -275,4 +274,105 @@ Benchmark                                                                       
 TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_hash_join     3068475 ns    3067048 ns        222
 TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_index_join    1141085 ns    1140485 ns        611
 
+```
+
+#### Experiment 5
+
+commit id: `6126e95aa103596e9c06466a45952ef4df74a2f2`
+
+In this experiment, a reduce PART table (reference table) and a reduced LINEITEM table (reference table) are joined using the JoinIndex operator. The JoinIndex operator builds one large PosList using all PosLists of the ReferenceSegments of the reduced LINEITEM table. Let this PosList be `possible_lineitem_positions`, it gets sorted afterwards.
+Additionally the join column of the reduced PART table is iterated. For each value, a **partial** IndexScan is executed on the original LINEITEM table that the reduced LINEITEM table references. A partial IndexScan means, that only the matching positions are calculated and a output table with reference chunks are not created. Therefore partial IndexScan returns a PosList as result. Let this PosList be `lineitem_matches`. After getting this PosList, it gets sorted and intersected with the previously sorted `possible_lineitem_positions`. The result PosList of this intersection contains the RowIDs of the reduced LINEITEM table that matches the IndexScan predicate.
+
+reduced part table (left join input): 3 rows  
+reduced lineitem table (right join input): 75'983 rows  
+join result table: 1 row
+
+Scale Factor 1.0  
+The JoinIndex is **1,264768186** times faster than the JoinHash.
+
+```
+2019-04-27 10:37:30
+Running ./hyriseMicroBenchmarks
+Run on (80 X 2395 MHz CPU s)
+CPU Caches:
+  L1 Data 32K (x40)
+  L1 Instruction 32K (x40)
+  L2 Unified 256K (x40)
+  L3 Unified 30720K (x4)
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+Generating TPC-H data set with scale factor 1 and Dictionary encoding:
+- Loading/Generating tables 
+- Loading/Generating tables done (24 s 721 ms)
+- Encoding tables if necessary
+-  Encoding 'nation' - encoding applied (943 µs 660 ns)
+-  Encoding 'orders' - encoding applied (754 ms 214 µs)
+-  Encoding 'region' - encoding applied (820 µs 305 ns)
+-  Encoding 'part' - encoding applied (594 ms 388 µs)
+-  Encoding 'lineitem' - encoding applied (1 s 830 ms)
+-  Encoding 'partsupp' - encoding applied (449 ms 890 µs)
+-  Encoding 'customer' - encoding applied (764 ms 758 µs)
+-  Encoding 'supplier' - encoding applied (56 ms 689 µs)
+- Encoding tables done (4 s 453 ms)
+- Adding Tables to StorageManager and generating statistics 
+-  Adding 'nation' (257 µs 802 ns)
+-  Adding 'orders' (3 s 138 ms)
+-  Adding 'region' (52 µs 971 ns)
+-  Adding 'part' (421 ms 774 µs)
+-  Adding 'lineitem' (13 s 695 ms)
+-  Adding 'partsupp' (1 s 260 ms)
+-  Adding 'customer' (463 ms 208 µs)
+-  Adding 'supplier' (25 ms 316 µs)
+- Adding Tables to StorageManager and generating statistics done (19 s 4 ms)
+------------------------------------------------------------------------------------------------------------------------------------------
+Benchmark                                                                                                   Time           CPU Iterations
+------------------------------------------------------------------------------------------------------------------------------------------
+TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_hash_join     3120240 ns    3118439 ns        223
+TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_index_join    2466743 ns    2465621 ns        283
+
+```
+
+#### Experiment 6
+
+commit id: `c684fa97779aed151b9344857e626a575a8719a1`
+Same setup as in experiment 5 but with **Scale Factor 10.0**.  
+The JoinIndex is **4,776724478** times faster than the JoinHash.
+
+```
+2019-04-27 11:08:51
+Running ./hyriseMicroBenchmarks
+Run on (80 X 2395 MHz CPU s)
+CPU Caches:
+  L1 Data 32K (x40)
+  L1 Instruction 32K (x40)
+  L2 Unified 256K (x40)
+  L3 Unified 30720K (x4)
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+Generating TPC-H data set with scale factor 10 and Dictionary encoding:
+- Loading/Generating tables 
+- Loading/Generating tables done (3 min 1 s)
+- Encoding tables if necessary
+-  Encoding 'nation' - encoding applied (4 ms 193 µs)
+-  Encoding 'orders' - encoding applied (2 s 633 ms)
+-  Encoding 'region' - encoding applied (9 ms 306 µs)
+-  Encoding 'part' - encoding applied (965 ms 449 µs)
+-  Encoding 'lineitem' - encoding applied (14 s 115 ms)
+-  Encoding 'partsupp' - encoding applied (2 s 77 ms)
+-  Encoding 'customer' - encoding applied (1 s 222 ms)
+-  Encoding 'supplier' - encoding applied (767 ms 475 µs)
+- Encoding tables done (21 s 794 ms)
+- Adding Tables to StorageManager and generating statistics 
+-  Adding 'nation' (280 µs 422 ns)
+-  Adding 'orders' (40 s 60 ms)
+-  Adding 'region' (80 µs 433 ns)
+-  Adding 'part' (4 s 879 ms)
+-  Adding 'lineitem' (2 min 28 s)
+-  Adding 'partsupp' (17 s 322 ms)
+-  Adding 'customer' (6 s 813 ms)
+-  Adding 'supplier' (319 ms 144 µs)
+- Adding Tables to StorageManager and generating statistics done (3 min 38 s)
+------------------------------------------------------------------------------------------------------------------------------------------
+Benchmark                                                                                                   Time           CPU Iterations
+------------------------------------------------------------------------------------------------------------------------------------------
+TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_hash_join   131053162 ns  130965017 ns          5
+TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_index_join   27433147 ns   27417327 ns         25
 ```
