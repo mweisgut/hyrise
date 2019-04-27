@@ -333,8 +333,8 @@ TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_referenc
 
 #### Experiment 6
 
-commit id: `c684fa97779aed151b9344857e626a575a8719a1`
-Same setup as in experiment 5 but with **Scale Factor 10.0**.  
+commit id: `c684fa97779aed151b9344857e626a575a8719a1`  
+Same setup as in experiment 5 but with **Scale Factor 10.0**.   
 The JoinIndex is **4,776724478** times faster than the JoinHash.
 
 ```
