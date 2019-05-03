@@ -376,3 +376,104 @@ Benchmark                                                                       
 TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_hash_join   131053162 ns  130965017 ns          5
 TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_reference_table_index_join   27433147 ns   27417327 ns         25
 ```
+
+#### Experiment 7
+
+commit id: `074ebabcef298d6cde4263a55066cedd9d392941`
+SF: 1.0
+
+In this experiment the execution time using different orders of the operators is measured.
+The first benchmark measures the execution times of the two table scans on the lineitem table followed by the index join of a pre-scanned part table and the twice-scanned lineitem table.
+The second benchmark measures the execution time of the index join of a pre-scanned part table and two scans of the result table afterwards.
+
+Joining first is **169,213611404** times faster than scanning first.
+
+```
+2019-05-03 10:17:46
+Running ./hyriseMicroBenchmarks
+Run on (80 X 2395 MHz CPU s)
+CPU Caches:
+  L1 Data 32K (x40)
+  L1 Instruction 32K (x40)
+  L2 Unified 256K (x40)
+  L3 Unified 30720K (x4)
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+Generating TPC-H data set with scale factor 1 and Dictionary encoding:
+- Loading/Generating tables 
+- Loading/Generating tables done (23 s 210 ms)
+- Encoding tables if necessary
+-  Encoding 'region' - encoding applied (684 µs 27 ns)
+-  Encoding 'nation' - encoding applied (515 µs 323 ns)
+-  Encoding 'supplier' - encoding applied (44 ms 104 µs)
+-  Encoding 'orders' - encoding applied (795 ms 528 µs)
+-  Encoding 'partsupp' - encoding applied (380 ms 385 µs)
+-  Encoding 'customer' - encoding applied (627 ms 730 µs)
+-  Encoding 'lineitem' - encoding applied (1 s 297 ms)
+-  Encoding 'part' - encoding applied (593 ms 464 µs)
+- Encoding tables done (3 s 740 ms)
+- Adding tables to StorageManager and generating statistics 
+-  Adding 'region' (211 µs 991 ns)
+-  Adding 'nation' (49 µs 100 ns)
+-  Adding 'supplier' (33 ms 332 µs)
+-  Adding 'orders' (3 s 24 ms)
+-  Adding 'partsupp' (1 s 385 ms)
+-  Adding 'customer' (480 ms 365 µs)
+-  Adding 'lineitem' (13 s 309 ms)
+-  Adding 'part' (360 ms 918 µs)
+- Adding tables to StorageManager and generating statistics done (18 s 593 ms)
+--------------------------------------------------------------------------------------------------------
+Benchmark                                                                 Time           CPU Iterations
+--------------------------------------------------------------------------------------------------------
+TPCHDataMicroBenchmarkFixture/BM_TPCH_pScan_lScan_lScan_plJoin     54044522 ns   53988618 ns         13
+TPCHDataMicroBenchmarkFixture/BM_TPCH_pScan_plJoin_plScan_plScan     319268 ns     319056 ns       2242
+```
+
+#### Experiment 8
+
+commit id: `a0ece74fb23bc27322c520aecaf905b21d422d54`
+SF: 10.0
+
+Same experiment as in experment 6 with SF 10.
+
+Joining first is **389,79776534** times faster than scanning first.
+
+```
+2019-05-03 10:33:36
+Running ./hyriseMicroBenchmarks
+Run on (80 X 2395 MHz CPU s)
+CPU Caches:
+  L1 Data 32K (x40)
+  L1 Instruction 32K (x40)
+  L2 Unified 256K (x40)
+  L3 Unified 30720K (x4)
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+Generating TPC-H data set with scale factor 10 and Dictionary encoding:
+- Loading/Generating tables 
+- Loading/Generating tables done (3 min 2 s)
+- Encoding tables if necessary
+-  Encoding 'region' - encoding applied (801 µs 571 ns)
+-  Encoding 'nation' - encoding applied (456 µs 767 ns)
+-  Encoding 'supplier' - encoding applied (568 ms 954 µs)
+-  Encoding 'orders' - encoding applied (2 s 248 ms)
+-  Encoding 'partsupp' - encoding applied (1 s 130 ms)
+-  Encoding 'customer' - encoding applied (1 s 421 ms)
+-  Encoding 'lineitem' - encoding applied (11 s 296 ms)
+-  Encoding 'part' - encoding applied (1 s 154 ms)
+- Encoding tables done (17 s 819 ms)
+- Adding tables to StorageManager and generating statistics 
+-  Adding 'region' (205 µs 892 ns)
+-  Adding 'nation' (47 µs 838 ns)
+-  Adding 'supplier' (533 ms 189 µs)
+-  Adding 'orders' (36 s 398 ms)
+-  Adding 'partsupp' (14 s 382 ms)
+-  Adding 'customer' (6 s 254 ms)
+-  Adding 'lineitem' (2 min 23 s)
+-  Adding 'part' (4 s 628 ms)
+- Adding tables to StorageManager and generating statistics done (3 min 25 s)
+--------------------------------------------------------------------------------------------------
+Benchmark                                                           Time           CPU Iterations
+--------------------------------------------------------------------------------------------------
+TPCHDataMicroBenchmarkFixture/BM_TPCH_lScan_lScan_plJoin    671186686 ns  670693831 ns          1
+TPCHDataMicroBenchmarkFixture/BM_TPCH_plJoin_plScan_plScan    1721498 ns    1720620 ns        392
+
+```
