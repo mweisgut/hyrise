@@ -27,8 +27,8 @@
 
 // #include <valgrind/callgrind.h>
 
-#define DEBUG
-#define PRINT_TABLE
+// #define DEBUG
+// #define PRINT_TABLE
 
 using namespace opossum::expression_functional;  // NOLINT
 
@@ -127,14 +127,10 @@ class TPCHDataMicroBenchmarkFixture : public MicroBenchmarkBasicFixture {
 
   const std::shared_ptr<TableWrapper> get_lineitem_table_wrapper();
   const std::shared_ptr<TableScan> execute_part_table_scan();
-  const std::shared_ptr<AbstractOperator> execute_lineitem_table_scan_1(
-      const std::shared_ptr<AbstractOperator> lineitem_input_operator);
-  const std::shared_ptr<AbstractOperator> execute_lineitem_table_scan_2(
-      const std::shared_ptr<AbstractOperator> lineitem_input_operator);
-  const std::shared_ptr<AbstractOperator> execute_jointable_part_lineitem_scan_1(
-      const std::shared_ptr<AbstractOperator> join_input_operator);
-  const std::shared_ptr<AbstractOperator> execute_jointable_part_lineitem_scan_2(
-      const std::shared_ptr<AbstractOperator> join_input_operator);
+  const std::shared_ptr<AbstractOperator> execute_gte_1995_09_01_table_scan(
+      const std::shared_ptr<AbstractOperator> input_operator, const ColumnID& scan_column);
+  const std::shared_ptr<AbstractOperator> execute_lt_1995_10_01_table_scan(
+      const std::shared_ptr<AbstractOperator> input_operator, const ColumnID& scan_column);
 
   void setup_join_tables_reduced_part_and_reduced_lineitem_data_table(
       std::shared_ptr<AbstractOperator>& left_operator, std::shared_ptr<AbstractOperator>& right_operator);
@@ -208,20 +204,17 @@ const std::shared_ptr<TableScan> TPCHDataMicroBenchmarkFixture::execute_part_tab
   return part_table_scan;
 }
 
-const std::shared_ptr<AbstractOperator> TPCHDataMicroBenchmarkFixture::execute_lineitem_table_scan_1(
-    const std::shared_ptr<AbstractOperator> lineitem_input_operator) {
-  const auto& l_shipdate_column_id = ColumnID{10};
-
-  const auto& lineitem_table = lineitem_input_operator->get_output();
+const std::shared_ptr<AbstractOperator> TPCHDataMicroBenchmarkFixture::execute_gte_1995_09_01_table_scan(
+    const std::shared_ptr<AbstractOperator> input_operator, const ColumnID& scan_column) {
+  const auto& lineitem_table = input_operator->get_output();
 
   // table scan shipdate >= '1995-09-01'
-  const auto& shipdate_pqp_column =
-      pqp_column_(l_shipdate_column_id, lineitem_table->column_data_type(l_shipdate_column_id),
-                  lineitem_table->column_is_nullable(l_shipdate_column_id), "");
+  const auto& shipdate_pqp_column = pqp_column_(scan_column, lineitem_table->column_data_type(scan_column),
+                                                lineitem_table->column_is_nullable(scan_column), "");
   const auto& shipdate_gte_predicate = std::make_shared<BinaryPredicateExpression>(
       PredicateCondition::GreaterThanEquals, shipdate_pqp_column, value_("1995-09-01"));
 
-  const auto& table_scan_shipdate_gte = std::make_shared<TableScan>(lineitem_input_operator, shipdate_gte_predicate);
+  const auto& table_scan_shipdate_gte = std::make_shared<TableScan>(input_operator, shipdate_gte_predicate);
   table_scan_shipdate_gte->execute();
 
 #ifdef DEBUG
@@ -232,41 +225,26 @@ const std::shared_ptr<AbstractOperator> TPCHDataMicroBenchmarkFixture::execute_l
   return table_scan_shipdate_gte;
 }
 
-const std::shared_ptr<AbstractOperator> TPCHDataMicroBenchmarkFixture::execute_lineitem_table_scan_2(
-    const std::shared_ptr<AbstractOperator> lineitem_input_operator) {
-  const auto& l_shipdate_column_id = ColumnID{10};
-
-  const auto& lineitem_table = lineitem_input_operator->get_output();
+const std::shared_ptr<AbstractOperator> TPCHDataMicroBenchmarkFixture::execute_lt_1995_10_01_table_scan(
+    const std::shared_ptr<AbstractOperator> input_operator, const ColumnID& scan_column) {
+  const auto& lineitem_table = input_operator->get_output();
 
   // table scan shipdate < '1995-10-01'
-  const auto& lineitem_scanned_shipdate_gte_pqp_column =
-      pqp_column_(l_shipdate_column_id, lineitem_table->column_data_type(ColumnID{10}),
-                  lineitem_table->column_is_nullable(ColumnID{10}), "");
+  const auto& lineitem_scanned_shipdate_gte_pqp_column = pqp_column_(
+      scan_column, lineitem_table->column_data_type(scan_column), lineitem_table->column_is_nullable(scan_column), "");
   const auto& shipdate_lt_predicate = std::make_shared<BinaryPredicateExpression>(
       PredicateCondition::LessThan, lineitem_scanned_shipdate_gte_pqp_column, value_("1995-10-01"));
 
-  const auto& table_scan_shipdate_lt = std::make_shared<TableScan>(lineitem_input_operator, shipdate_lt_predicate);
+  const auto& table_scan_shipdate_lt = std::make_shared<TableScan>(input_operator, shipdate_lt_predicate);
   table_scan_shipdate_lt->execute();
 
 #ifdef DEBUG
-  const auto& table_scanned_lt = std::const_pointer_cast<Table>(lineitem_input_operator->get_output());
+  const auto& table_scanned_lt = std::const_pointer_cast<Table>(input_operator->get_output());
   std::cout << "lineitem table (shipdate >= '1995-09-01' AND shipdate < '1995-10-01') " << table_scanned_lt->row_count()
             << " rows" << std::endl;
 #endif
 
   return table_scan_shipdate_lt;
-}
-
-const std::shared_ptr<AbstractOperator> TPCHDataMicroBenchmarkFixture::execute_jointable_part_lineitem_scan_1(
-    const std::shared_ptr<AbstractOperator> join_input_operator) {
-  // TODO(Marcel)
-  return nullptr;
-}
-
-const std::shared_ptr<AbstractOperator> TPCHDataMicroBenchmarkFixture::execute_jointable_part_lineitem_scan_2(
-    const std::shared_ptr<AbstractOperator> join_input_operator) {
-  // TODO(Marcel)
-  return nullptr;
 }
 
 void TPCHDataMicroBenchmarkFixture::setup_join_tables_reduced_part_and_reduced_lineitem_data_table(
@@ -309,10 +287,12 @@ void TPCHDataMicroBenchmarkFixture::setup_join_tables_reduced_part_and_reduced_l
   // AND l_shipdate >= '1995-09-01'
   // AND l_shipdate < '1995-10-01';
 
+  const auto& l_shipdate_column_id = ColumnID{10};
+
   const auto part_table_scan = execute_part_table_scan();
   const auto lineitem_table_wrapper = get_lineitem_table_wrapper();
-  const auto lineitem_scan1 = execute_lineitem_table_scan_1(lineitem_table_wrapper);
-  const auto lineitem_scan2 = execute_lineitem_table_scan_2(lineitem_scan1);
+  const auto lineitem_scan1 = execute_gte_1995_09_01_table_scan(lineitem_table_wrapper, l_shipdate_column_id);
+  const auto lineitem_scan2 = execute_lt_1995_10_01_table_scan(lineitem_scan1, l_shipdate_column_id);
   left_operator = part_table_scan;
   right_operator = lineitem_scan2;
 }
@@ -517,12 +497,60 @@ BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_reduced_part_and_reduced_line
 #endif
 }
 
-BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_pScan_lScan_lScan_plJoin)(benchmark::State& state) {
-  // TODO(Marcel)
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_lScan_lScan_plJoin)(benchmark::State& state) {
+  const auto& p_partkey_column_id = ColumnID{0};
+  const auto& l_partkey_column_id = ColumnID{1};
+  const auto& l_shipdate_column_id = ColumnID{10};
+
+  const auto& part_table_scan = execute_part_table_scan();
+  const auto& lineitem_table_wrapper = get_lineitem_table_wrapper();
+
+  std::shared_ptr<AbstractOperator> join_index;
+
+  for (auto _ : state) {
+    const auto& lineitem_scan1 = execute_gte_1995_09_01_table_scan(lineitem_table_wrapper, l_shipdate_column_id);
+    const auto& lineitem_scan2 = execute_lt_1995_10_01_table_scan(lineitem_scan1, l_shipdate_column_id);
+
+    join_index = std::make_shared<JoinIndex>(
+        part_table_scan, lineitem_scan2, JoinMode::Inner,
+        OperatorJoinPredicate{{p_partkey_column_id, l_partkey_column_id}, PredicateCondition::Equals});
+    join_index->execute();
+  }
+
+#ifdef DEBUG
+  std::cout << "result table: " << join_index->get_output()->row_count() << " rows" << std::endl;
+#ifdef PRINT_TABLE
+  Print::print(join_index->get_output());
+#endif
+#endif
 }
 
-BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCJ_pScan_plJoin_plScan_plScan)(benchmark::State& state) {
-  // TODO(Marcel)
+BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCH_plJoin_plScan_plScan)(benchmark::State& state) {
+  const auto& p_partkey_column_id = ColumnID{0};
+  const auto& l_partkey_column_id = ColumnID{1};
+  const auto& pl_shipdate_column_id = ColumnID{19};
+
+  const auto& part_table_scan = execute_part_table_scan();
+  const auto& lineitem_table_wrapper = get_lineitem_table_wrapper();
+
+  std::shared_ptr<AbstractOperator> part_lineitem_scan2;
+
+  for (auto _ : state) {
+    const auto& join_index = std::make_shared<JoinIndex>(
+        part_table_scan, lineitem_table_wrapper, JoinMode::Inner,
+        OperatorJoinPredicate{{p_partkey_column_id, l_partkey_column_id}, PredicateCondition::Equals});
+    join_index->execute();
+
+    const auto& part_lineitem_scan1 = execute_gte_1995_09_01_table_scan(join_index, pl_shipdate_column_id);
+    part_lineitem_scan2 = execute_lt_1995_10_01_table_scan(part_lineitem_scan1, pl_shipdate_column_id);
+  }
+
+#ifdef DEBUG
+  std::cout << "result table: " << part_lineitem_scan2->get_output()->row_count() << " rows" << std::endl;
+#ifdef PRINT_TABLE
+  Print::print(part_lineitem_scan2->get_output());
+#endif
+#endif
 }
 
 BENCHMARK_F(TPCHDataMicroBenchmarkFixture, BM_TPCHQ6FirstScanPredicate)(benchmark::State& state) {
