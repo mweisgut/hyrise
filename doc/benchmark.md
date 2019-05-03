@@ -379,7 +379,7 @@ TPCHDataMicroBenchmarkFixture/BM_TPCH_reduced_part_and_reduced_lineitem_referenc
 
 #### Experiment 7
 
-commit id: `074ebabcef298d6cde4263a55066cedd9d392941`
+commit id: `074ebabcef298d6cde4263a55066cedd9d392941`  
 SF: 1.0
 
 In this experiment the execution time using different orders of the operators is measured.
@@ -430,7 +430,7 @@ TPCHDataMicroBenchmarkFixture/BM_TPCH_pScan_plJoin_plScan_plScan     319268 ns  
 
 #### Experiment 8
 
-commit id: `a0ece74fb23bc27322c520aecaf905b21d422d54`
+commit id: `a0ece74fb23bc27322c520aecaf905b21d422d54`  
 SF: 10.0
 
 Same experiment as in experment 6 with SF 10.
