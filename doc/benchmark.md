@@ -433,7 +433,7 @@ TPCHDataMicroBenchmarkFixture/BM_TPCH_pScan_plJoin_plScan_plScan     319268 ns  
 commit id: `a0ece74fb23bc27322c520aecaf905b21d422d54`  
 SF: 10.0
 
-Same experiment as in experment 6 with SF 10.
+Same experiment as in experment 7 with SF 10.
 
 Joining first is **389,79776534** times faster than scanning first.
 
