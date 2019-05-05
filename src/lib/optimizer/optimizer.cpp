@@ -14,6 +14,7 @@
 #include "strategy/expression_reduction_rule.hpp"
 #include "strategy/index_scan_rule.hpp"
 #include "strategy/insert_limit_in_exists_rule.hpp"
+#include "strategy/join_index_placement_rule.hpp"
 #include "strategy/join_ordering_rule.hpp"
 #include "strategy/predicate_placement_rule.hpp"
 #include "strategy/predicate_reordering_rule.hpp"
@@ -111,6 +112,11 @@ std::shared_ptr<Optimizer> Optimizer::create_default_optimizer() {
   optimizer->add_rule(std::make_unique<PredicateReorderingRule>());
 
   optimizer->add_rule(std::make_unique<IndexScanRule>());
+
+  optimizer->add_rule(std::make_unique<JoinIndexPlacementRule>());
+  // TODO(Marcel) call the PredicateReorderingRule again or place the JoinIndexPlacementRule
+  // TODO(Marcel) over the PredicatePlacementRule and add a Blocker in the PredicatePlacementRule:
+  // TODO(Marcel) don't push down predicates below JoinIndex-applicable JoinNodes.
 
   return optimizer;
 }
