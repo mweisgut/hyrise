@@ -4,6 +4,7 @@
 #include <string>
 
 #include "abstract_rule.hpp"
+#include "logical_query_plan/abstract_lqp_node.hpp"
 #include "storage/index/index_info.hpp"
 #include "storage/table.hpp"
 
@@ -20,7 +21,7 @@ class JoinIndexPlacementRule : public AbstractRule {
 
  protected:
   // return values indicates whether the left input tree contains a JoinNode
-  bool _place_join_node_recursively(const std::shared_ptr<AbstractLQPNode>& node,
+  bool _place_join_node_recursively(const std::shared_ptr<AbstractLQPNode>& node, const LQPInputSide input_side,
                                     std::vector<std::shared_ptr<PredicateNode>>& predicates_to_move,
                                     const std::shared_ptr<JoinNode>& latest_join_node = nullptr) const;
   bool _is_join_index_applicable_locally(const std::shared_ptr<JoinNode>& join_node) const;
