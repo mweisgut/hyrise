@@ -195,7 +195,7 @@ void Table::append_chunk(const std::shared_ptr<Chunk>& chunk) {
 
 std::unique_lock<std::mutex> Table::acquire_append_mutex() { return std::unique_lock<std::mutex>(*_append_mutex); }
 
-std::vector<IndexInfo> Table::get_indexes() const { return _indexes; }
+std::vector<IndexStatistics> Table::get_indexes() const { return _indexes; }
 
 size_t Table::estimate_memory_usage() const {
   auto bytes = size_t{sizeof(*this)};
