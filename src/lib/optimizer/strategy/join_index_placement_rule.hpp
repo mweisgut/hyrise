@@ -22,7 +22,7 @@ class JoinIndexPlacementRule : public AbstractRule {
  protected:
   // return values indicates whether the left input tree contains a JoinNode
   bool _place_join_node_recursively(const std::shared_ptr<AbstractLQPNode>& node, const LQPInputSide input_side,
-                                    std::vector<std::shared_ptr<PredicateNode>>& predicates_to_move,
+                                    std::vector<std::shared_ptr<PredicateNode>>& predicates_to_pull_up,
                                     const std::shared_ptr<JoinNode>& latest_join_node = nullptr) const;
   bool _is_join_index_applicable_locally(const std::shared_ptr<JoinNode>& join_node) const;
 };
