@@ -5,6 +5,7 @@
 
 #include "all_parameter_variant.hpp"
 #include "all_type_variant.hpp"
+#include "storage/index/index_statistics.hpp"
 #include "types.hpp"
 
 namespace opossum {
@@ -24,7 +25,8 @@ class TableStatistics final {
   static constexpr auto DEFAULT_DISJUNCTION_SELECTIVITY = 0.2f;
 
   TableStatistics(const TableType table_type, const float row_count,
-                  const std::vector<std::shared_ptr<const BaseColumnStatistics>>& column_statistics);
+                  const std::vector<std::shared_ptr<const BaseColumnStatistics>>& column_statistics,
+                  const std::vector<IndexStatistics> index_statistics = {});
   TableStatistics(const TableStatistics& table_statistics) = default;
 
   /**
@@ -35,6 +37,7 @@ class TableStatistics final {
   float row_count() const;
   uint64_t approx_valid_row_count() const;
   const std::vector<std::shared_ptr<const BaseColumnStatistics>>& column_statistics() const;
+  const std::vector<IndexStatistics> index_statistics() const;
   /** @} */
 
   /**
@@ -65,6 +68,7 @@ class TableStatistics final {
   TableType _table_type;
   float _row_count;
   std::vector<std::shared_ptr<const BaseColumnStatistics>> _column_statistics;
+  std::vector<IndexStatistics> _index_statistics;
 
   // Stores the number of invalid (deleted) rows.
   // This is currently not an atomic due to performance considerations.

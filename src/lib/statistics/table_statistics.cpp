@@ -9,8 +9,12 @@
 namespace opossum {
 
 TableStatistics::TableStatistics(const TableType table_type, const float row_count,
-                                 const std::vector<std::shared_ptr<const BaseColumnStatistics>>& column_statistics)
-    : _table_type(table_type), _row_count(row_count), _column_statistics(column_statistics) {}
+                                 const std::vector<std::shared_ptr<const BaseColumnStatistics>>& column_statistics,
+                                 const std::vector<IndexStatistics> index_statistics)
+    : _table_type(table_type),
+      _row_count(row_count),
+      _column_statistics(column_statistics),
+      _index_statistics(index_statistics) {}
 
 TableType TableStatistics::table_type() const { return _table_type; }
 
@@ -23,6 +27,8 @@ uint64_t TableStatistics::approx_valid_row_count() const {
 const std::vector<std::shared_ptr<const BaseColumnStatistics>>& TableStatistics::column_statistics() const {
   return _column_statistics;
 }
+
+const std::vector<IndexStatistics> TableStatistics::index_statistics() const { return _index_statistics; }
 
 TableStatistics TableStatistics::estimate_predicate(const ColumnID column_id,
                                                     const PredicateCondition predicate_condition,

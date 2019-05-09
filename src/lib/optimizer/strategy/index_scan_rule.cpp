@@ -39,7 +39,7 @@ void IndexScanRule::apply_to(const std::shared_ptr<AbstractLQPNode>& node) const
       const auto stored_table_node = std::dynamic_pointer_cast<StoredTableNode>(child);
       const auto table = StorageManager::get().get_table(stored_table_node->table_name);
 
-      const auto indexes_statistics = table->get_indexes();
+      const auto indexes_statistics = table->indexes_statistics();
       for (const auto& index_statistics : indexes_statistics) {
         if (_is_index_scan_applicable(index_statistics, predicate_node)) {
           predicate_node->scan_type = ScanType::IndexScan;

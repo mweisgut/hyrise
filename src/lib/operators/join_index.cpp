@@ -198,7 +198,7 @@ void JoinIndex::_perform_join_right_reference_table() {
   }
   // use _perform_join if the referenced data table has no index
   Assert(referenced_data_table != nullptr, "ReferenceSegment has no reference table.");
-  if (referenced_data_table->get_indexes().empty()) {
+  if (referenced_data_table->indexes_statistics().empty()) {
     _perform_join();
   } else {
     // Assumption: Original data table of the right input table has

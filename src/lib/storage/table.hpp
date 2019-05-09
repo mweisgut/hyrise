@@ -151,7 +151,7 @@ class Table : private Noncopyable {
 
   std::shared_ptr<TableStatistics> table_statistics() const { return _table_statistics; }
 
-  std::vector<IndexStatistics> get_indexes() const;
+  std::vector<IndexStatistics> indexes_statistics() const;
 
   template <typename Index>
   void create_index(const std::vector<ColumnID>& column_ids, const std::string& name = "") {
