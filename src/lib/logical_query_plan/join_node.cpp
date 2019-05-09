@@ -20,7 +20,8 @@
 
 namespace opossum {
 
-JoinNode::JoinNode(const JoinMode join_mode) : AbstractLQPNode(LQPNodeType::Join), join_mode(join_mode) {
+JoinNode::JoinNode(const JoinMode join_mode)
+    : AbstractLQPNode(LQPNodeType::Join), join_mode(join_mode), _committed_to_index(false) {
   Assert(join_mode == JoinMode::Cross, "Only Cross Joins can be constructed without predicate");
 }
 
@@ -28,10 +29,14 @@ JoinNode::JoinNode(const JoinMode join_mode, const std::shared_ptr<AbstractExpre
     : JoinNode(join_mode, std::vector<std::shared_ptr<AbstractExpression>>{join_predicate}) {}
 
 JoinNode::JoinNode(const JoinMode join_mode, const std::vector<std::shared_ptr<AbstractExpression>>& join_predicates)
-    : AbstractLQPNode(LQPNodeType::Join, join_predicates), join_mode(join_mode) {
+    : AbstractLQPNode(LQPNodeType::Join, join_predicates), join_mode(join_mode), _committed_to_index(false) {
   Assert(join_mode != JoinMode::Cross, "Cross Joins take no predicate");
   Assert(!join_predicates.empty(), "Non-Cross Joins require predicates");
 }
+
+bool JoinNode::committed_to_index() { return _committed_to_index; }
+
+void JoinNode::commit_to_index() { _committed_to_index = true; }
 
 std::string JoinNode::description() const {
   std::stringstream stream;
