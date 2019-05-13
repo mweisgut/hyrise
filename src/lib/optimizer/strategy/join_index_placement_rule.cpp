@@ -31,8 +31,8 @@ bool JoinIndexPlacementRule::_place_join_node_recursively(
     std::shared_ptr<JoinNode> updated_latest_join_node = std::dynamic_pointer_cast<JoinNode>(input_node);
 
     if (updated_latest_join_node) {
-      predicates_to_pull_up.clear(); 
-    }else{
+      predicates_to_pull_up.clear();
+    } else {
       updated_latest_join_node = latest_join_node;
     }
 
@@ -52,7 +52,8 @@ bool JoinIndexPlacementRule::_place_join_node_recursively(
         break;
       }
       case LQPNodeType::Join: {
-        if (!is_join_in_subtrees && !predicates_to_pull_up.empty() && _is_join_index_applicable_locally(updated_latest_join_node)) {
+        if (!is_join_in_subtrees && !predicates_to_pull_up.empty() &&
+            _is_join_index_applicable_locally(updated_latest_join_node)) {
           // the JoinNode has no JoinNode as input recursively
           Assert(input_node->output_count() == 1, "A join node is expected to have exactly one output node.");
 
@@ -100,6 +101,10 @@ bool JoinIndexPlacementRule::_is_join_index_applicable_locally(const std::shared
     // - one of the join tables is smaller than the other table
     // - the smaller table has a maximim rowcount of size_factor*rowcount(larger table)
     if (join_node->join_mode == JoinMode::Inner) {
+      // const auto& indexes_statistics = join_node->get_statistics()->index_statistics();
+      for(const auto& join_predicate : join_node->join_predicates()){
+        std::cout << *join_predicate << std::endl;
+      }
       // - the greater table has indizes for the join column
       // TODO(Marcel)
       std::cout << "INDEX JOIN APPLICABLE!" << std::endl;

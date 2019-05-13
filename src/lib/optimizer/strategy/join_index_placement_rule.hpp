@@ -5,7 +5,7 @@
 
 #include "abstract_rule.hpp"
 #include "logical_query_plan/abstract_lqp_node.hpp"
-#include "storage/index/index_info.hpp"
+#include "storage/index/index_statistics.hpp"
 #include "storage/table.hpp"
 
 namespace opossum {
