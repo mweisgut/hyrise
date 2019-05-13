@@ -61,6 +61,12 @@ TEST_F(JoinNodeTest, DescriptionAntiJoin) {
   EXPECT_EQ(_anti_join_node->description(), "[Join] Mode: AntiNullAsTrue [a = y]");
 }
 
+TEST_F(JoinNodeTest, IndexCommitment) {
+  EXPECT_FALSE(_join_node->committed_to_index());
+  _join_node->commit_to_index();
+  EXPECT_TRUE(_join_node->committed_to_index());
+}
+
 TEST_F(JoinNodeTest, OutputColumnExpressions) {
   ASSERT_EQ(_join_node->column_expressions().size(), 5u);
   EXPECT_EQ(*_join_node->column_expressions().at(0), *lqp_column_(_t_a_a));
