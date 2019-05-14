@@ -37,6 +37,7 @@
 #include "operators/index_scan.hpp"
 #include "operators/insert.hpp"
 #include "operators/join_hash.hpp"
+#include "operators/join_index.hpp"
 #include "operators/join_sort_merge.hpp"
 #include "operators/limit.hpp"
 #include "operators/maintenance/create_prepared_plan.hpp"
@@ -309,6 +310,16 @@ std::shared_ptr<AbstractOperator> LQPTranslator::_translate_join_node(
 
   const auto& primary_join_predicate = join_predicates.front();
   std::vector<OperatorJoinPredicate> secondary_join_predicates(join_predicates.cbegin() + 1, join_predicates.cend());
+
+  if (join_node->committed_to_index() == IndexCommittedTable::Left) {
+    // TODO(Marcel) support all index types here or block them for the index creation
+    return std::make_shared<JoinIndex>(input_left_operator, input_right_operator, join_node->join_mode,
+                                       primary_join_predicate);
+  } else if (join_node->committed_to_index() == IndexCommittedTable::Right) {
+    // TODO(Marcel) support all index types here or block them for the index creation
+    return std::make_shared<JoinIndex>(input_left_operator, input_right_operator, join_node->join_mode,
+                                       primary_join_predicate);
+  }
 
   if (primary_join_predicate.predicate_condition == PredicateCondition::Equals &&
       join_node->join_mode != JoinMode::FullOuter) {

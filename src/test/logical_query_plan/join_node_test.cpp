@@ -11,6 +11,7 @@
 #include "logical_query_plan/mock_node.hpp"
 #include "logical_query_plan/stored_table_node.hpp"
 #include "storage/storage_manager.hpp"
+#include "types.hpp"
 
 using namespace opossum::expression_functional;  // NOLINT
 
@@ -62,9 +63,11 @@ TEST_F(JoinNodeTest, DescriptionAntiJoin) {
 }
 
 TEST_F(JoinNodeTest, IndexCommitment) {
-  EXPECT_FALSE(_join_node->committed_to_index());
-  _join_node->commit_to_index();
-  EXPECT_TRUE(_join_node->committed_to_index());
+  EXPECT_EQ(_join_node->committed_to_index(), IndexCommittedTable::None);
+  _join_node->commit_to_index(IndexCommittedTable::Left);
+  EXPECT_EQ(_join_node->committed_to_index(), IndexCommittedTable::Left);
+  _join_node->commit_to_index(IndexCommittedTable::Right);
+  EXPECT_EQ(_join_node->committed_to_index(), IndexCommittedTable::Right);
 }
 
 TEST_F(JoinNodeTest, OutputColumnExpressions) {
