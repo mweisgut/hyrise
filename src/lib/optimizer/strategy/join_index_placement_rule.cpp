@@ -112,6 +112,12 @@ bool JoinIndexPlacementRule::_is_join_index_applicable_locally(const std::shared
     auto join_predicate = OperatorJoinPredicate::from_expression(*predicate_expressions[0], *join_node->left_input(),
                                                                  *join_node->right_input());
     if (join_predicate) {
+      // TODO(Marcel) remove comments
+      // std::cout << "JOIN PREDICATE" << std::endl;
+      // std::cout << "LEFT NODE" << std::endl; 
+      // std::cout << *left_input_node << std::endl;
+      // std::cout << "RIGHT NODE" << std::endl; 
+      // std::cout << *right_input_node << std::endl;
       if (left_input_row_count < size_factor * right_input_row_count &&
           _is_index_on_join_column(*right_input_table_statistics, join_predicate->column_ids.second)) {
         std::cout << "INDEX JOIN APPLICABLE!" << std::endl;
@@ -122,10 +128,6 @@ bool JoinIndexPlacementRule::_is_join_index_applicable_locally(const std::shared
         return true;
       }
     }
-
-    // const auto has_index_for_join_column = [&](const auto& table_statistics, ){
-    //   for(const auto)
-    // }
   }
   return false;
 }
@@ -134,6 +136,7 @@ bool JoinIndexPlacementRule::_is_index_on_join_column(const TableStatistics& ind
                                                       const ColumnID join_column_id) const {
   for (const auto& index_statistics : indexed_table_statistics.index_statistics()) {
     const auto index_column_ids = index_statistics.column_ids;
+    std::cout << index_column_ids.size() << std::endl;
     if (index_column_ids.size() == 1 && index_column_ids[0] == join_column_id) {
       return true;
     }
