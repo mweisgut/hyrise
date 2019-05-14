@@ -5,6 +5,7 @@
 #include "logical_query_plan/logical_plan_root_node.hpp"
 #include "logical_query_plan/lqp_utils.hpp"
 #include "logical_query_plan/predicate_node.hpp"
+#include "operators/operator_join_predicate.hpp"
 #include "statistics/table_statistics.hpp"
 #include "types.hpp"
 
@@ -96,21 +97,44 @@ bool JoinIndexPlacementRule::_is_join_index_applicable_locally(const std::shared
   const auto& right_input_node = join_node->right_input();
 
   Assert(left_input_node && right_input_node, "A JoinNode is expected to have two input nodes.");
-  const auto& left_input_row_count = left_input_node->get_statistics()->approx_valid_row_count();
-  const auto& right_input_row_count = right_input_node->get_statistics()->approx_valid_row_count();
+  const auto& left_input_table_statistics = left_input_node->get_statistics();
+  const auto& right_input_table_statistics = right_input_node->get_statistics();
+
+  const auto& left_input_row_count = left_input_table_statistics->approx_valid_row_count();
+  const auto& right_input_row_count = right_input_table_statistics->approx_valid_row_count();
 
   // TODO(Marcel) we have to do further experiments to find the threshold or
   // generally the conditions for using an index join.
   float size_factor = 0.2f;
-  if (left_input_row_count < size_factor * right_input_row_count ||
-      right_input_row_count < size_factor * left_input_row_count) {
-    // - one of the join tables is smaller than the other table
-    // - the smaller table has a maximim rowcount of size_factor*rowcount(larger table)
-    if (join_node->join_mode == JoinMode::Inner) {
-      // const auto& indexes_statistics = join_node->get_statistics()->index_statistics();
-      // - the greater table has indices for the join column
-      // TODO(Marcel)
-      std::cout << "INDEX JOIN APPLICABLE!" << std::endl;
+  const auto predicate_expressions = join_node->join_predicates();
+  // for now, only place a JoinIndex for inner single predicate joins
+  if (join_node->join_mode == JoinMode::Inner && predicate_expressions.size() == 1) {
+    auto join_predicate = OperatorJoinPredicate::from_expression(*predicate_expressions[0], *join_node->left_input(),
+                                                                 *join_node->right_input());
+    if (join_predicate) {
+      if (left_input_row_count < size_factor * right_input_row_count &&
+          _is_index_on_join_column(*right_input_table_statistics, join_predicate->column_ids.second)) {
+        std::cout << "INDEX JOIN APPLICABLE!" << std::endl;
+        return true;
+      } else if (right_input_row_count < size_factor * left_input_row_count &&
+                 _is_index_on_join_column(*left_input_table_statistics, join_predicate->column_ids.first)) {
+        std::cout << "INDEX JOIN APPLICABLE!" << std::endl;
+        return true;
+      }
+    }
+
+    // const auto has_index_for_join_column = [&](const auto& table_statistics, ){
+    //   for(const auto)
+    // }
+  }
+  return false;
+}
+
+bool JoinIndexPlacementRule::_is_index_on_join_column(const TableStatistics& indexed_table_statistics,
+                                                      const ColumnID join_column_id) const {
+  for (const auto& index_statistics : indexed_table_statistics.index_statistics()) {
+    const auto index_column_ids = index_statistics.column_ids;
+    if (index_column_ids.size() == 1 && index_column_ids[0] == join_column_id) {
       return true;
     }
   }
