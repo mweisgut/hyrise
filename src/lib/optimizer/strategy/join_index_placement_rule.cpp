@@ -44,6 +44,11 @@ bool JoinIndexPlacementRule::_place_join_node_recursively(
     bool is_join_in_subtrees = is_join_in_left_subtree || is_join_in_right_subtree;
 
     switch (input_node->type) {
+      case LQPNodeType::DummyTable: {
+        // work around with very small overheaded for #1500 to not use the cost estimators in function
+        // "_is_join_index_applicable_locally" on an LQP containing a DummyTableNode
+        return true;
+      }
       case LQPNodeType::Predicate: {
         if (latest_join_node && !is_join_in_subtrees) {
           const auto predicate_node = std::dynamic_pointer_cast<PredicateNode>(input_node);
@@ -82,13 +87,14 @@ bool JoinIndexPlacementRule::_place_join_node_recursively(
       }
     }
     return is_join_in_left_subtree || is_join_in_right_subtree;
-  }  // if(node)
+  }  // if(input_node)
   return false;
 }
 
 bool JoinIndexPlacementRule::_is_join_index_applicable_locally(const std::shared_ptr<JoinNode>& join_node) const {
   const auto& left_input_node = join_node->left_input();
   const auto& right_input_node = join_node->right_input();
+
   Assert(left_input_node && right_input_node, "A JoinNode is expected to have two input nodes.");
   const auto& left_input_row_count = left_input_node->get_statistics()->approx_valid_row_count();
   const auto& right_input_row_count = right_input_node->get_statistics()->approx_valid_row_count();
@@ -102,10 +108,7 @@ bool JoinIndexPlacementRule::_is_join_index_applicable_locally(const std::shared
     // - the smaller table has a maximim rowcount of size_factor*rowcount(larger table)
     if (join_node->join_mode == JoinMode::Inner) {
       // const auto& indexes_statistics = join_node->get_statistics()->index_statistics();
-      for(const auto& join_predicate : join_node->join_predicates()){
-        std::cout << *join_predicate << std::endl;
-      }
-      // - the greater table has indizes for the join column
+      // - the greater table has indices for the join column
       // TODO(Marcel)
       std::cout << "INDEX JOIN APPLICABLE!" << std::endl;
       return true;
