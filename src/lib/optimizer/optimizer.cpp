@@ -115,6 +115,8 @@ std::shared_ptr<Optimizer> Optimizer::create_default_optimizer() {
 
   optimizer->add_rule(std::make_unique<JoinIndexPlacementRule>());
 
+  optimizer->add_rule(std::make_unique<PredicateReorderingRule>());
+
   return optimizer;
 }
 
