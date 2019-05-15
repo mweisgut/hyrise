@@ -1,8 +1,10 @@
 #include "join_index_placement_rule.hpp"
 #include "expression/expression_utils.hpp"
+#include "expression/lqp_column_expression.hpp"
 #include "logical_query_plan/abstract_lqp_node.hpp"
 #include "logical_query_plan/join_node.hpp"
 #include "logical_query_plan/logical_plan_root_node.hpp"
+#include "logical_query_plan/lqp_column_reference.hpp"
 #include "logical_query_plan/lqp_utils.hpp"
 #include "logical_query_plan/predicate_node.hpp"
 #include "operators/operator_join_predicate.hpp"
@@ -112,19 +114,11 @@ bool JoinIndexPlacementRule::_is_join_index_applicable_locally(const std::shared
     auto join_predicate = OperatorJoinPredicate::from_expression(*predicate_expressions[0], *join_node->left_input(),
                                                                  *join_node->right_input());
     if (join_predicate) {
-      // TODO(Marcel) remove comments
-      // std::cout << "JOIN PREDICATE" << std::endl;
-      // std::cout << "LEFT NODE" << std::endl; 
-      // std::cout << *left_input_node << std::endl;
-      // std::cout << "RIGHT NODE" << std::endl; 
-      // std::cout << *right_input_node << std::endl;
       if (left_input_row_count < size_factor * right_input_row_count &&
-          _is_index_on_join_column(*right_input_table_statistics, join_predicate->column_ids.second)) {
-        std::cout << "INDEX JOIN APPLICABLE!" << std::endl;
+          _is_index_on_join_column(right_input_node, join_predicate->column_ids.second)) {
         return true;
       } else if (right_input_row_count < size_factor * left_input_row_count &&
-                 _is_index_on_join_column(*left_input_table_statistics, join_predicate->column_ids.first)) {
-        std::cout << "INDEX JOIN APPLICABLE!" << std::endl;
+                 _is_index_on_join_column(left_input_node, join_predicate->column_ids.first)) {
         return true;
       }
     }
@@ -132,15 +126,22 @@ bool JoinIndexPlacementRule::_is_join_index_applicable_locally(const std::shared
   return false;
 }
 
-bool JoinIndexPlacementRule::_is_index_on_join_column(const TableStatistics& indexed_table_statistics,
+bool JoinIndexPlacementRule::_is_index_on_join_column(const std::shared_ptr<AbstractLQPNode>& larger_join_input_node,
                                                       const ColumnID join_column_id) const {
-  for (const auto& index_statistics : indexed_table_statistics.index_statistics()) {
-    const auto index_column_ids = index_statistics.column_ids;
-    std::cout << index_column_ids.size() << std::endl;
-    if (index_column_ids.size() == 1 && index_column_ids[0] == join_column_id) {
-      return true;
+  if (!larger_join_input_node->column_expressions().empty()) {
+    const auto lqp_column_expression =
+        std::dynamic_pointer_cast<LQPColumnExpression>(larger_join_input_node->column_expressions().front());
+    Assert(lqp_column_expression, "Column expression is not of type LQPColumnExpression.");
+    const auto& original_node = lqp_column_expression->column_reference.original_node();
+
+    for (const auto& index_statistics : original_node->get_statistics()->index_statistics()) {
+      const auto index_column_ids = index_statistics.column_ids;
+      if (index_column_ids.size() == 1 && index_column_ids[0] == join_column_id) {
+        return true;
+      }
     }
   }
+
   return false;
 }
 

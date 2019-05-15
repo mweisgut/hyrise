@@ -216,7 +216,7 @@ bool AbstractLQPNode::is_column_nullable(const ColumnID column_id) const {
   return left_input()->is_column_nullable(column_id);
 }
 
-const std::shared_ptr<TableStatistics> AbstractLQPNode::get_statistics() {
+const std::shared_ptr<TableStatistics> AbstractLQPNode::get_statistics() const {
   return derive_statistics_from(left_input(), right_input());
 }
 

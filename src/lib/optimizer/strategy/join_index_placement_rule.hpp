@@ -25,7 +25,8 @@ class JoinIndexPlacementRule : public AbstractRule {
                                     std::vector<std::shared_ptr<PredicateNode>>& predicates_to_pull_up,
                                     const std::shared_ptr<JoinNode>& latest_join_node = nullptr) const;
   bool _is_join_index_applicable_locally(const std::shared_ptr<JoinNode>& join_node) const;
-  bool _is_index_on_join_column(const TableStatistics& indexed_table_statistics, const ColumnID join_column_id) const;
+  bool _is_index_on_join_column(const std::shared_ptr<AbstractLQPNode>& larger_join_input_node,
+                                const ColumnID join_column_id) const;
 };
 
 }  // namespace opossum

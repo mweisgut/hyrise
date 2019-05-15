@@ -46,7 +46,7 @@ void AbstractTableGenerator::generate_and_store() {
 
   /**
    * Create Indices
-   */ 
+   */
 
   /**
    * CREATE INDICES
@@ -67,7 +67,6 @@ void AbstractTableGenerator::generate_and_store() {
   const auto& s_suppkey_column_id = ColumnID{0};
   const auto& s_nationkey_column_id = ColumnID{3};
 
-  
   const std::vector<ColumnID>& c_custkey_column_ids = {c_custkey_column_id};
   const std::vector<ColumnID>& c_nationkey_column_ids = {c_nationkey_column_id};
   const std::vector<ColumnID>& l_orderkey_column_ids = {l_orderkey_column_id};
@@ -79,10 +78,10 @@ void AbstractTableGenerator::generate_and_store() {
   const std::vector<ColumnID>& o_custkey_column_ids = {o_custkey_column_id};
   const std::vector<ColumnID>& p_partkey_column_ids = {p_partkey_column_id};
   const std::vector<ColumnID>& ps_partkey_column_ids = {ps_partkey_column_id};
-  const std::vector<ColumnID>& ps_suppkey_column_ids = {ps_suppkey_column_id};  
-  const std::vector<ColumnID>& r_regionkey_column_ids = {r_regionkey_column_id};  
-  const std::vector<ColumnID>& s_suppkey_column_ids = {s_suppkey_column_id};  
-  const std::vector<ColumnID>& s_nationkey_column_ids = {s_nationkey_column_id};  
+  const std::vector<ColumnID>& ps_suppkey_column_ids = {ps_suppkey_column_id};
+  const std::vector<ColumnID>& r_regionkey_column_ids = {r_regionkey_column_id};
+  const std::vector<ColumnID>& s_suppkey_column_ids = {s_suppkey_column_id};
+  const std::vector<ColumnID>& s_nationkey_column_ids = {s_nationkey_column_id};
 
   table_info_by_name["customer"].table->create_index<GroupKeyIndex>(c_custkey_column_ids);
   table_info_by_name["customer"].table->create_index<GroupKeyIndex>(c_nationkey_column_ids);
