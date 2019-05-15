@@ -114,9 +114,6 @@ std::shared_ptr<Optimizer> Optimizer::create_default_optimizer() {
   optimizer->add_rule(std::make_unique<IndexScanRule>());
 
   optimizer->add_rule(std::make_unique<JoinIndexPlacementRule>());
-  // TODO(Marcel) call the PredicateReorderingRule again or place the JoinIndexPlacementRule
-  // TODO(Marcel) over the PredicatePlacementRule and add a Blocker in the PredicatePlacementRule:
-  // TODO(Marcel) don't push down predicates below JoinIndex-applicable JoinNodes.
 
   return optimizer;
 }
