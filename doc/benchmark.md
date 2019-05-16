@@ -1,3 +1,29 @@
+#### No IndexJoinPlacementRule vs IndexJoinPlacementRule + Additional PredicateReorderingRule V2
+
+How often was an IndexJoin used for a query?
+- Q 01: -
+- Q 02: Y
+- Q 03: Y
+- Q 04: -
+- Q 05: Y
+- Q 06: -
+- Q 07: -
+- Q 08: Y
+- Q 09: Y
+- Q 10: -
+- Q 11: -
+- Q 12: -
+- Q 13: -
+- Q 14: Y
+- Q 15: -
+- Q 16: -
+- Q 17: Y
+- Q 18: -
+- Q 19: -
+- Q 20: -
+- Q 21: -
+- Q 22: -
+
 #### No IndexJoinPlacementRule vs IndexJoinPlacementRule + Additional PredicateReorderingRule
 
 commit id: `95b5d33a963cb625dfd5497dda0c0bdda097b607`  

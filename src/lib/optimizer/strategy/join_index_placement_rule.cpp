@@ -113,7 +113,7 @@ JoinInputSide JoinIndexPlacementRule::_is_join_index_applicable_locally(
 
   // TODO(Marcel) we have to do further experiments to find the threshold or
   // generally the conditions for using an index join.
-  float size_factor = 0.2f;
+  float size_factor = 0.1f;
   const auto predicate_expressions = join_node->join_predicates();
   // for now, only place a JoinIndex for inner single predicate joins
   if (join_node->join_mode == JoinMode::Inner && predicate_expressions.size() == 1) {
