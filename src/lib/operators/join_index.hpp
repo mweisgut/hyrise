@@ -21,8 +21,12 @@ namespace opossum {
    */
 class JoinIndex : public AbstractJoinOperator {
  public:
+  static bool supports(JoinMode join_mode, PredicateCondition predicate_condition, DataType left_data_type,
+                       DataType right_data_type, bool secondary_predicates);
+
   JoinIndex(const std::shared_ptr<const AbstractOperator>& left, const std::shared_ptr<const AbstractOperator>& right,
-            const JoinMode mode, const OperatorJoinPredicate& primary_predicate);
+            const JoinMode mode, const OperatorJoinPredicate& primary_predicate,
+            const std::vector<OperatorJoinPredicate>& secondary_predicates = {});
 
   const std::string name() const override;
 
@@ -41,8 +45,8 @@ class JoinIndex : public AbstractJoinOperator {
       const std::shared_ptr<AbstractOperator>& copied_input_right) const override;
   void _on_set_parameters(const std::unordered_map<ParameterID, AllTypeVariant>& parameters) override;
 
-  void _perform_join();
-  void _perform_join_right_reference_table();
+  std::shared_ptr<Table> _perform_join();
+  std::shared_ptr<Table> _perform_join_right_reference_table();
   void _append_matches(const ChunkID& left_chunk_id, const ChunkOffset& left_chunk_offset,
                        const PosList& right_table_matches);
   std::shared_ptr<PosList> _matches_of_reference_table(const std::shared_ptr<const Table>& table);
