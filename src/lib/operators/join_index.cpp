@@ -306,9 +306,8 @@ std::shared_ptr<Table> JoinIndex::_perform_join_right_reference_table() {
     // write output chunks
     Segments output_segments;
 
-    // TODO(Marcel) maybe here is a fault! What happens if left is also a reference table?
     _write_output_segments(output_segments, input_table_left(), _pos_list_left);
-    _write_output_segments(output_segments, input_table_right(), _pos_list_right, false);
+    _write_output_segments(output_segments, input_table_right(), _pos_list_right);
     return _build_output_table({std::make_shared<Chunk>(output_segments)});
   }
   return _perform_join();
@@ -424,7 +423,7 @@ void JoinIndex::_append_matches(const BaseIndex::Iterator& range_begin, const Ba
 }
 
 void JoinIndex::_write_output_segments(Segments& output_segments, const std::shared_ptr<const Table>& input_table,
-                                       std::shared_ptr<PosList> pos_list, bool row_id_correction) {
+                                       std::shared_ptr<PosList> pos_list) {
   // Add segments from table to output chunk
   for (ColumnID column_id{0}; column_id < input_table->column_count(); ++column_id) {
     std::shared_ptr<BaseSegment> segment;
@@ -438,24 +437,22 @@ void JoinIndex::_write_output_segments(Segments& output_segments, const std::sha
         auto reference_segment = std::static_pointer_cast<const ReferenceSegment>(
             input_table->get_chunk(ChunkID{0})->get_segment(column_id));
 
-        if (row_id_correction) {
-          // de-reference to the correct RowID so the output can be used in a Multi Join
-          for (const auto& row : *pos_list) {
-            if (row.is_null()) {
-              new_pos_list->push_back(NULL_ROW_ID);
-              continue;
-            }
-            if (row.chunk_id != current_chunk_id) {
-              current_chunk_id = row.chunk_id;
-
-              reference_segment = std::dynamic_pointer_cast<const ReferenceSegment>(
-                  input_table->get_chunk(current_chunk_id)->get_segment(column_id));
-            }
-            new_pos_list->push_back((*reference_segment->pos_list())[row.chunk_offset]);
+        // de-reference to the correct RowID so the output can be used in a Multi Join
+        for (const auto& row : *pos_list) {
+          if (row.is_null()) {
+            new_pos_list->push_back(NULL_ROW_ID);
+            continue;
           }
-          segment = std::make_shared<ReferenceSegment>(reference_segment->referenced_table(),
-                                                       reference_segment->referenced_column_id(), new_pos_list);
+          if (row.chunk_id != current_chunk_id) {
+            current_chunk_id = row.chunk_id;
+
+            reference_segment = std::dynamic_pointer_cast<const ReferenceSegment>(
+                input_table->get_chunk(current_chunk_id)->get_segment(column_id));
+          }
+          new_pos_list->push_back((*reference_segment->pos_list())[row.chunk_offset]);
         }
+        segment = std::make_shared<ReferenceSegment>(reference_segment->referenced_table(),
+                                                     reference_segment->referenced_column_id(), new_pos_list);
 
         segment = std::make_shared<ReferenceSegment>(reference_segment->referenced_table(),
                                                      reference_segment->referenced_column_id(), pos_list);

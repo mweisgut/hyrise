@@ -64,7 +64,7 @@ class JoinIndex : public AbstractJoinOperator {
                        const ChunkOffset chunk_offset_left, const ChunkID chunk_id_left, const ChunkID chunk_id_right);
 
   void _write_output_segments(Segments& output_segments, const std::shared_ptr<const Table>& input_table,
-                              std::shared_ptr<PosList> pos_list, bool row_id_correction = true);
+                              std::shared_ptr<PosList> pos_list);
 
   void _on_cleanup() override;
 
