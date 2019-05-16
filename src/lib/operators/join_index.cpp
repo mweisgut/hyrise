@@ -213,7 +213,7 @@ std::shared_ptr<Table> JoinIndex::_perform_join_right_reference_table() {
 
   // get referenced data table
   std::shared_ptr<const Table> referenced_data_table;
-  if (!input_table_right()->chunks()[0]->segments().empty()) {
+  if (!input_table_right()->chunks().empty() && !input_table_right()->chunks()[0]->segments().empty()) {
     const auto& first_reference_segment = std::dynamic_pointer_cast<ReferenceSegment>(
         input_table_right()->chunks()[0]->segments()[_primary_predicate.column_ids.second]);
     if (first_reference_segment != nullptr) {
@@ -225,9 +225,7 @@ std::shared_ptr<Table> JoinIndex::_perform_join_right_reference_table() {
   }
   // use _perform_join if the referenced data table has no index
   Assert(referenced_data_table != nullptr, "ReferenceSegment has no reference table.");
-  if (referenced_data_table->indexes_statistics().empty()) {
-    _perform_join();
-  } else {
+  if (!referenced_data_table->indexes_statistics().empty()) {
     // Assumption: Original data table of the right input table has
     // an index for each segment that is evaluated for the join
 
@@ -291,12 +289,6 @@ std::shared_ptr<Table> JoinIndex::_perform_join_right_reference_table() {
                 _primary_predicate.predicate_condition, right_values);
             auto right_data_table_matches = index_scan_on_data_table->execute_matches_calculation();
 
-            // the following line was used before introducing execut_positions_calculation
-            // auto right_data_table_matches = _matches_of_reference_table(index_scan_on_data_table->get_output());
-
-            // std::cout << "right_data_table_matches sorted: ";
-            // std::cout << std::is_sorted(right_data_table_matches->begin(), right_data_table_matches->end()) << "\n";
-
             std::sort(right_data_table_matches->begin(), right_data_table_matches->end());
             auto input_right_table_matches = PosList{};
 
@@ -314,11 +306,12 @@ std::shared_ptr<Table> JoinIndex::_perform_join_right_reference_table() {
     // write output chunks
     Segments output_segments;
 
+    // TODO(Marcel) maybe here is a fault! What happens if left is also a reference table?
     _write_output_segments(output_segments, input_table_left(), _pos_list_left);
     _write_output_segments(output_segments, input_table_right(), _pos_list_right, false);
-
     return _build_output_table({std::make_shared<Chunk>(output_segments)});
   }
+  return _perform_join();
 }
 
 std::shared_ptr<PosList> JoinIndex::_matches_of_reference_table(const std::shared_ptr<const Table>& table) {
