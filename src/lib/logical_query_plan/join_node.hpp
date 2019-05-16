@@ -36,14 +36,14 @@ class JoinNode : public EnableMakeForLQPNode<JoinNode>, public AbstractLQPNode {
       const std::shared_ptr<AbstractLQPNode>& right_input) const override;
 
   const std::vector<std::shared_ptr<AbstractExpression>>& join_predicates() const;
-  IndexCommittedTable committed_to_index();
-  void commit_to_index(const IndexCommittedTable);
+  JoinInputSide index_primary_table_side();
+  void set_index_primary_table_side(const JoinInputSide);
 
   const JoinMode join_mode;
 
  protected:
   std::shared_ptr<AbstractLQPNode> _on_shallow_copy(LQPNodeMapping& node_mapping) const override;
-  IndexCommittedTable _index_committed_table;
+  JoinInputSide _index_primary_table_side;
   bool _on_shallow_equals(const AbstractLQPNode& rhs, const LQPNodeMapping& node_mapping) const override;
 
  private:

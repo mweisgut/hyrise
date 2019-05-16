@@ -63,11 +63,11 @@ TEST_F(JoinNodeTest, DescriptionAntiJoin) {
 }
 
 TEST_F(JoinNodeTest, IndexCommitment) {
-  EXPECT_EQ(_join_node->committed_to_index(), IndexCommittedTable::None);
-  _join_node->commit_to_index(IndexCommittedTable::Left);
-  EXPECT_EQ(_join_node->committed_to_index(), IndexCommittedTable::Left);
-  _join_node->commit_to_index(IndexCommittedTable::Right);
-  EXPECT_EQ(_join_node->committed_to_index(), IndexCommittedTable::Right);
+  EXPECT_EQ(_join_node->index_primary_table_side(), JoinInputSide::None);
+  _join_node->set_index_primary_table_side(JoinInputSide::Left);
+  EXPECT_EQ(_join_node->index_primary_table_side(), JoinInputSide::Left);
+  _join_node->set_index_primary_table_side(JoinInputSide::Right);
+  EXPECT_EQ(_join_node->index_primary_table_side(), JoinInputSide::Right);
 }
 
 TEST_F(JoinNodeTest, OutputColumnExpressions) {

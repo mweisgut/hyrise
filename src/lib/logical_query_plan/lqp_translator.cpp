@@ -311,11 +311,11 @@ std::shared_ptr<AbstractOperator> LQPTranslator::_translate_join_node(
   const auto& primary_join_predicate = join_predicates.front();
   std::vector<OperatorJoinPredicate> secondary_join_predicates(join_predicates.cbegin() + 1, join_predicates.cend());
 
-  if (join_node->committed_to_index() == IndexCommittedTable::Left) {
+  if (join_node->index_primary_table_side() == JoinInputSide::Left) {
     // TODO(Marcel) support all index types here or block them for the index creation
     return std::make_shared<JoinIndex>(input_left_operator, input_right_operator, join_node->join_mode,
                                        primary_join_predicate);
-  } else if (join_node->committed_to_index() == IndexCommittedTable::Right) {
+  } else if (join_node->index_primary_table_side() == JoinInputSide::Right) {
     // TODO(Marcel) support all index types here or block them for the index creation
     return std::make_shared<JoinIndex>(input_left_operator, input_right_operator, join_node->join_mode,
                                        primary_join_predicate);

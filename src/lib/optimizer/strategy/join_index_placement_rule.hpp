@@ -7,6 +7,7 @@
 #include "logical_query_plan/abstract_lqp_node.hpp"
 #include "storage/index/index_statistics.hpp"
 #include "storage/table.hpp"
+#include "types.hpp"
 
 namespace opossum {
 
@@ -24,7 +25,7 @@ class JoinIndexPlacementRule : public AbstractRule {
   bool _place_join_node_recursively(const std::shared_ptr<AbstractLQPNode>& node, const LQPInputSide input_side,
                                     std::vector<std::shared_ptr<PredicateNode>>& predicates_to_pull_up,
                                     const std::shared_ptr<JoinNode>& latest_join_node = nullptr) const;
-  bool _is_join_index_applicable_locally(const std::shared_ptr<JoinNode>& join_node) const;
+  JoinInputSide _is_join_index_applicable_locally(const std::shared_ptr<JoinNode>& join_node) const;
   bool _is_index_on_join_column(const std::shared_ptr<AbstractLQPNode>& larger_join_input_node,
                                 const ColumnID join_column_id) const;
 };

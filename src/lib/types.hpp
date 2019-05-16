@@ -202,7 +202,7 @@ enum class PredicateCondition {
   IsNotNull
 };
 
-enum class IndexCommittedTable { Left, Right, None };
+enum class JoinInputSide { Left, Right, None };
 
 // @return whether the PredicateCondition takes exactly two arguments
 bool is_binary_predicate_condition(const PredicateCondition predicate_condition);

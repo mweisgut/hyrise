@@ -60,28 +60,33 @@ bool JoinIndexPlacementRule::_place_join_node_recursively(
         break;
       }
       case LQPNodeType::Join: {
-        if (!is_join_in_subtrees && !predicates_to_pull_up.empty() &&
-            _is_join_index_applicable_locally(updated_latest_join_node)) {
-          // the JoinNode has no JoinNode as input recursively
-          Assert(input_node->output_count() == 1, "A join node is expected to have exactly one output node.");
+        if (!is_join_in_subtrees && !predicates_to_pull_up.empty()) {
+          // TODO(Marcel) naming has to be improved
+          const auto index_primary_table_side = _is_join_index_applicable_locally(updated_latest_join_node);
+          if (index_primary_table_side != JoinInputSide::None) {
+            updated_latest_join_node->set_index_primary_table_side(index_primary_table_side);
 
-          // build predicate chain
-          const auto predicate_chain_root = LogicalPlanRootNode::make();
-          std::shared_ptr<AbstractLQPNode> predicate_chain_end = predicate_chain_root;
+            // the JoinNode has no JoinNode as input recursively
+            Assert(input_node->output_count() == 1, "A join node is expected to have exactly one output node.");
 
-          for (const auto& predicate_node : predicates_to_pull_up) {
-            lqp_remove_node(predicate_node);
-            predicate_chain_end->set_left_input(predicate_node);
-            predicate_chain_end = predicate_node;
+            // build predicate chain
+            const auto predicate_chain_root = LogicalPlanRootNode::make();
+            std::shared_ptr<AbstractLQPNode> predicate_chain_end = predicate_chain_root;
+
+            for (const auto& predicate_node : predicates_to_pull_up) {
+              lqp_remove_node(predicate_node);
+              predicate_chain_end->set_left_input(predicate_node);
+              predicate_chain_end = predicate_node;
+            }
+
+            // link the chain into the LQP
+            node->set_input(input_side, predicate_chain_root->left_input());
+            predicate_chain_end->set_left_input(updated_latest_join_node);
+            predicates_to_pull_up.clear();
+
+            // TODO(Marcel): Add a flag to the Join Node which helps the LQPTranslator
+            // to decide whether an index join shall be used.
           }
-
-          // link the chain into the LQP
-          node->set_input(input_side, predicate_chain_root->left_input());
-          predicate_chain_end->set_left_input(updated_latest_join_node);
-          predicates_to_pull_up.clear();
-
-          // TODO(Marcel): Add a flag to the Join Node which helps the LQPTranslator
-          // to decide whether an index join shall be used.
         }
         return true;
       }
@@ -94,7 +99,8 @@ bool JoinIndexPlacementRule::_place_join_node_recursively(
   return false;
 }
 
-bool JoinIndexPlacementRule::_is_join_index_applicable_locally(const std::shared_ptr<JoinNode>& join_node) const {
+JoinInputSide JoinIndexPlacementRule::_is_join_index_applicable_locally(
+    const std::shared_ptr<JoinNode>& join_node) const {
   const auto& left_input_node = join_node->left_input();
   const auto& right_input_node = join_node->right_input();
 
@@ -116,14 +122,14 @@ bool JoinIndexPlacementRule::_is_join_index_applicable_locally(const std::shared
     if (join_predicate) {
       if (left_input_row_count < size_factor * right_input_row_count &&
           _is_index_on_join_column(right_input_node, join_predicate->column_ids.second)) {
-        return true;
+        return JoinInputSide::Right;
       } else if (right_input_row_count < size_factor * left_input_row_count &&
                  _is_index_on_join_column(left_input_node, join_predicate->column_ids.first)) {
-        return true;
+        return JoinInputSide::Left;
       }
     }
   }
-  return false;
+  return JoinInputSide::None;
 }
 
 bool JoinIndexPlacementRule::_is_index_on_join_column(const std::shared_ptr<AbstractLQPNode>& larger_join_input_node,
