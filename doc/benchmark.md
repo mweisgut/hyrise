@@ -1,28 +1,41 @@
+#### Further experiments for IndexJoin queries (2,3,5,8,9,14,17)
+
+All queries fall back to the nested loop join.  
+Queries for which two projections are the JoinIndex inputs:  
+2,3,5,8,9,14,17 --> All JoinIndex-relevant queries have projections as input. Therefore
+the original data tables are not accessed --> the accessed tables don't have indices.
+
 #### No IndexJoinPlacementRule vs IndexJoinPlacementRule + Additional PredicateReorderingRule V2
 
-How often was an IndexJoin used for a query?
-- Q 01: -
-- Q 02: Y
-- Q 03: Y
-- Q 04: -
-- Q 05: Y
-- Q 06: -
-- Q 07: -
-- Q 08: Y
-- Q 09: Y
-- Q 10: -
-- Q 11: -
-- Q 12: -
-- Q 13: -
-- Q 14: Y
-- Q 15: -
-- Q 16: -
-- Q 17: Y
-- Q 18: -
-- Q 19: -
-- Q 20: -
-- Q 21: -
-- Q 22: -
+commit id: `46d6a6a85e64c6767478479af0fdef1f4926b7fd`
+
++----------------+----------------+------+-------------------+------+------------+---------------------------------+
+| Benchmark  (IJ)| prev. iter/s   | runs | new iter/s        | runs | change [%] | p-value (significant if <0.001) |
++----------------+----------------+------+-------------------+------+------------+---------------------------------+
+| TPC-H 1        | 0.21275626123  | 13   | 0.222574949265    | 14   | +5%        |                          0.0000 |
+| TPC-H 2     Y  | 4.32471132278  | 260  | 0.00283059524372  | 1    | -100%      |           (not enough runs) nan |
+| TPC-H 3     Y  | 3.05668640137  | 184  | 0.00144365651067  | 1    | -100%      |           (not enough runs) nan |
+| TPC-H 4        | 1.09300518036  | 66   | 1.14908874035     | 69   | +5%        |                          0.0000 |
+| TPC-H 5     Y  | 2.06358098984  | 124  | 2.44435358047     | 147  | +18%       |                          0.0000 |
+| TPC-H 6        | 3.89955830574  | 234  | 3.92650437355     | 236  | +1%        |                          0.2612 |
+| TPC-H 7        | 0.629360556602 | 38   | 0.648810565472    | 39   | +3%        |                          0.0000 |
+| TPC-H 8     Y  | 2.29891943932  | 138  | 0.000246844399953 | 1    | -100%      |           (not enough runs) nan |
+| TPC-H 9     Y  | 0.710052847862 | 43   | 0.00024558705627  | 1    | -100%      |           (not enough runs) nan |
+| TPC-H 10       | 1.36736500263  | 83   | 1.39022612572     | 84   | +2%        |                          0.0000 |
+| TPC-H 11       | 13.5454950333  | 813  | 18.7914962769     | 1128 | +39%       |                          0.0000 |
+| TPC-H 12       | 3.47885560989  | 209  | 3.9256939888      | 236  | +13%       |                          0.0000 |
+| TPC-H 13       | 1.20316195488  | 73   | 1.22741651535     | 74   | +2%        |                          0.0062 |
+| TPC-H 14    Y  | 11.7121486664  | 703  | 0.000374269176973 | 1    | -100%      |           (not enough runs) nan |
+| TPC-H 15       | 7.85988664627  | 472  | 8.01616764069     | 481  | +2%        |                          0.0000 |
+| TPC-H 16       | 3.39795780182  | 204  | 3.72948122025     | 224  | +10%       |                          0.0000 |
+| TPC-H 17    Y  | 0.675080537796 | 41   | 0.000373923248844 | 1    | -100%      |           (not enough runs) nan |
+| TPC-H 18       | 0.746687352657 | 45   | 0.86581158638     | 52   | +16%       |                          0.0000 |
+| TPC-H 19       | 2.6254491806   | 158  | 2.8420484066      | 171  | +8%        |                          0.0000 |
+| TPC-H 20       | 1.0215395689   | 62   | 1.03491866589     | 63   | +1%        |                          0.0000 |
+| TPC-H 21       | 0.223747879267 | 14   | 0.229144528508    | 14   | +2%        |                          0.0000 |
+| TPC-H 22       | 5.24645805359  | 315  | 5.3048620224      | 319  | +1%        |                          0.0000 |
+| geometric mean |                |      |                   |      | -89%       |                                 |
++----------------+----------------+------+-------------------+------+------------+---------------------------------+
 
 #### No IndexJoinPlacementRule vs IndexJoinPlacementRule + Additional PredicateReorderingRule
 
