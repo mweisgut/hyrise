@@ -47,6 +47,7 @@ the original data tables are not accessed --> the accessed tables don't have ind
 
 commit id: `46d6a6a85e64c6767478479af0fdef1f4926b7fd`
 
+```
 +----------------+----------------+------+-------------------+------+------------+---------------------------------+
 | Benchmark  (IJ)| prev. iter/s   | runs | new iter/s        | runs | change [%] | p-value (significant if <0.001) |
 +----------------+----------------+------+-------------------+------+------------+---------------------------------+
@@ -74,6 +75,7 @@ commit id: `46d6a6a85e64c6767478479af0fdef1f4926b7fd`
 | TPC-H 22       | 5.24645805359  | 315  | 5.3048620224      | 319  | +1%        |                          0.0000 |
 | geometric mean |                |      |                   |      | -89%       |                                 |
 +----------------+----------------+------+-------------------+------+------------+---------------------------------+
+```
 
 #### No IndexJoinPlacementRule vs IndexJoinPlacementRule + Additional PredicateReorderingRule
 
