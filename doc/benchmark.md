@@ -1,3 +1,41 @@
+#### Effect of additional IndexJoinPlacementRule + Additional PredicateReorderingRule
+
+In this version, the projection operator was modified. Now a projection forwards single-column indices.  
+
+version without IndexJoinPlacementRule: `535c3391ef191f899d5a9d0be889c191ba1a9da8`  
+version with IndexJoinPlacementRule: `036c713367b0d3e2e2b67098b1c7187e6c9bd860`  
+
+```
++----------------+----------------+------+----------------+------+------------+---------------------------------+
+| Benchmark  (IJ)| prev. iter/s   | runs | new iter/s     | runs | change [%] | p-value (significant if <0.001) |
++----------------+----------------+------+----------------+------+------------+---------------------------------+
+| TPC-H 1        | 0.223961099982 | 12   | 0.225101903081 | 12   | +1%        |     (run time too short) 0.0824 |
+| TPC-H 2      Y | 4.76732110977  | 239  | 2.261033535    | 114  | -53%       |     (run time too short) 0.0000 |
+| TPC-H 3      Y | 3.11760139465  | 156  | 1.44704437256  | 73   | -54%       |     (run time too short) 0.0000 |
+| TPC-H 4        | 1.13301408291  | 57   | 1.15646612644  | 58   | +2%        |     (run time too short) 0.0000 |
+| TPC-H 5      Y | 2.41769242287  | 121  | 2.3869125843   | 120  | -1%        |     (run time too short) 0.0414 |
+| TPC-H 6        | 3.95523047447  | 198  | 4.08140563965  | 205  | +3%        |     (run time too short) 0.0000 |
+| TPC-H 7        | 0.652304768562 | 33   | 0.65274065733  | 33   | +0%        |     (run time too short) 0.8440 |
+| TPC-H 8      Y | 2.77189207077  | 139  | 0.433254539967 | 22   | -84%       |     (run time too short) 0.0000 |
+| TPC-H 9      Y | 0.784137785435 | 40   | 0.303733110428 | 16   | -61%       |     (run time too short) 0.0000 |
+| TPC-H 10       | 1.4014621973   | 71   | 1.39813327789  | 70   | -0%        |     (run time too short) 0.4125 |
+| TPC-H 11       | 18.8957977295  | 945  | 18.8761768341  | 944  | -0%        |     (run time too short) 0.7094 |
+| TPC-H 12       | 3.99219942093  | 200  | 4.03843784332  | 202  | +1%        |     (run time too short) 0.0003 |
+| TPC-H 13       | 1.24678170681  | 63   | 1.24492871761  | 63   | -0%        |     (run time too short) 0.8566 |
+| TPC-H 14     Y | 12.4258356094  | 622  | 0.270688325167 | 14   | -98%       |     (run time too short) 0.0000 |
+| TPC-H 15       | 8.15819835663  | 408  | 8.31071376801  | 416  | +2%        |     (run time too short) 0.0000 |
+| TPC-H 16       | 3.65528178215  | 183  | 3.6699488163   | 184  | +0%        |     (run time too short) 0.1626 |
+| TPC-H 17     Y | 0.812508285046 | 41   | 0.212832629681 | 11   | -74%       |     (run time too short) 0.0000 |
+| TPC-H 18       | 0.885608375072 | 45   | 0.874071121216 | 44   | -1%        |     (run time too short) 0.1693 |
+| TPC-H 19       | 2.80154371262  | 141  | 2.83348155022  | 142  | +1%        |     (run time too short) 0.0000 |
+| TPC-H 20       | 1.04819071293  | 53   | 1.04829239845  | 53   | +0%        |     (run time too short) 0.9428 |
+| TPC-H 21       | 0.228599146008 | 12   | 0.231115072966 | 12   | +1%        |     (run time too short) 0.0010 |
+| TPC-H 22       | 5.37617111206  | 269  | 5.3461432457   | 268  | -1%        |     (run time too short) 0.0201 |
+| geometric mean |                |      |                |      | -35%       |                                 |
++----------------+----------------+------+----------------+------+------------+---------------------------------+
+
+```
+
 #### Further experiments for IndexJoin queries (2,3,5,8,9,14,17)
 
 All queries fall back to the nested loop join.  
