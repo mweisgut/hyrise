@@ -59,9 +59,12 @@ std::shared_ptr<const Table> Projection::_on_execute() {
    * Perform the projection
    */
   auto output_chunk_segments = std::vector<Segments>(input_table.chunk_count());
+  auto output_chunk_indices = std::vector<Indices>(input_table.chunk_count());
 
   for (auto chunk_id = ChunkID{0}; chunk_id < input_table.chunk_count(); ++chunk_id) {
     auto output_segments = Segments{expressions.size()};
+    auto output_indices = Indices{};
+    output_indices.reserve(expressions.size());
 
     const auto input_chunk = input_table.get_chunk(chunk_id);
 
@@ -73,7 +76,13 @@ std::shared_ptr<const Table> Projection::_on_execute() {
       // Forward input column if possible
       if (expression->type == ExpressionType::PQPColumn && forward_columns) {
         const auto pqp_column_expression = std::static_pointer_cast<PQPColumnExpression>(expression);
-        output_segments[column_id] = input_chunk->get_segment(pqp_column_expression->column_id);
+        const auto output_segment = input_chunk->get_segment(pqp_column_expression->column_id);
+        // TODO(Marcel) get all Indices
+        const auto output_index = input_chunk->get_index(SegmentIndexType::GroupKey, {output_segment});
+        if (output_index) {
+          output_indices.emplace_back(output_index);
+        }
+        output_segments[column_id] = output_segment;
         column_is_nullable[column_id] =
             column_is_nullable[column_id] || input_table.column_is_nullable(pqp_column_expression->column_id);
 
@@ -85,6 +94,7 @@ std::shared_ptr<const Table> Projection::_on_execute() {
     }
 
     output_chunk_segments[chunk_id] = std::move(output_segments);
+    output_chunk_indices[chunk_id] = std::move(output_indices);
   }
 
   /**
@@ -100,7 +110,8 @@ std::shared_ptr<const Table> Projection::_on_execute() {
 
   for (auto chunk_id = ChunkID{0}; chunk_id < input_table.chunk_count(); ++chunk_id) {
     output_chunks[chunk_id] = std::make_shared<Chunk>(std::move(output_chunk_segments[chunk_id]),
-                                                      input_table.get_chunk(chunk_id)->mvcc_data());
+                                                      input_table.get_chunk(chunk_id)->mvcc_data(), std::nullopt,
+                                                      std::move(output_chunk_indices[chunk_id]));
   }
 
   return std::make_shared<Table>(column_definitions, output_table_type, std::move(output_chunks),

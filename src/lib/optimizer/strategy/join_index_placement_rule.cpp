@@ -69,19 +69,19 @@ bool JoinIndexPlacementRule::_place_join_node_recursively(
             // the JoinNode has no JoinNode as input recursively
             Assert(input_node->output_count() == 1, "A join node is expected to have exactly one output node.");
 
-            // build predicate chain
-            const auto predicate_chain_root = LogicalPlanRootNode::make();
-            std::shared_ptr<AbstractLQPNode> predicate_chain_end = predicate_chain_root;
+            // build predicates chain
+            const auto pull_up_chain_root = LogicalPlanRootNode::make();
+            std::shared_ptr<AbstractLQPNode> pull_up_chain_end = pull_up_chain_root;
 
             for (const auto& predicate_node : predicates_to_pull_up) {
               lqp_remove_node(predicate_node);
-              predicate_chain_end->set_left_input(predicate_node);
-              predicate_chain_end = predicate_node;
+              pull_up_chain_end->set_left_input(predicate_node);
+              pull_up_chain_end = predicate_node;
             }
 
             // link the chain into the LQP
-            node->set_input(input_side, predicate_chain_root->left_input());
-            predicate_chain_end->set_left_input(updated_latest_join_node);
+            node->set_input(input_side, pull_up_chain_root->left_input());
+            pull_up_chain_end->set_left_input(updated_latest_join_node);
             predicates_to_pull_up.clear();
 
             // TODO(Marcel): Add a flag to the Join Node which helps the LQPTranslator

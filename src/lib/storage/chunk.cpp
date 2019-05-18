@@ -18,8 +18,8 @@
 namespace opossum {
 
 Chunk::Chunk(Segments segments, const std::shared_ptr<MvccData>& mvcc_data,
-             const std::optional<PolymorphicAllocator<Chunk>>& alloc)
-    : _segments(std::move(segments)), _mvcc_data(mvcc_data) {
+             const std::optional<PolymorphicAllocator<Chunk>>& alloc, Indices indices)
+    : _segments(std::move(segments)), _mvcc_data(mvcc_data), _indices(std::move(indices)) {
 #if HYRISE_DEBUG
   const auto chunk_size = _segments.empty() ? 0u : _segments[0]->size();
   const auto is_reference_chunk =
