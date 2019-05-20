@@ -7,7 +7,7 @@ version with new rules: `c57809b85283eb110346685e1abba89b34193723`
 
 SF 1.0  
 
-#####Query Plan Evaluation
+##### Query Plan Evaluation
 
 |Query ID|LQP left row count|LQP right row count|LQP smaller row count / larger row count|PQP left row count|PQP right row count|PQP smaller row count / larger row count|
 |--------|------------------|-------------------|----------------------------------------|------------------|-------------------|----------------------------------------|
@@ -18,7 +18,7 @@ SF 1.0
 |19			 |6,001,215					|200,000						|0.0333265847														 |6,001,215					|200,000						|0.0333265847 												|
   
 
-#####Benchmark Results
+##### Benchmark Results
 
 | Benchmark      | prev. iter/s   | runs | new iter/s     | runs | change [%] | p-value (significant if <0.001) |
 |----------------|----------------|------|----------------|------|------------|---------------------------------|
