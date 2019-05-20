@@ -1,5 +1,47 @@
 #### Effect of additional IndexJoinPlacementRule + Additional PredicateReorderingRule
 
+SF 10.0
+
+The same versions as in the previous experiment were used.  
+version without IndexJoinPlacementRule: `535c3391ef191f899d5a9d0be889c191ba1a9da8`  
+version with IndexJoinPlacementRule: `036c713367b0d3e2e2b67098b1c7187e6c9bd860`  
+
+Benchmark runner limitation: time 120  
+
+```
++----------------+-----------------+------+------------------+------+------------+---------------------------------+
+| Benchmark  (JI)| prev. iter/s    | runs | new iter/s       | runs | change [%] | p-value (significant if <0.001) |
++----------------+-----------------+------+------------------+------+------------+---------------------------------+
+| TPC-H 1        | 0.0217794291675 | 3    | 0.0219399034977  | 3    | +1%        |        (not enough runs) 0.7375 |
+| TPC-H 2      Y | 0.281032115221  | 34   | 0.0379721522331  | 5    | -86%       |        (not enough runs) 0.0000 |
+| TPC-H 3      Y | 0.214108929038  | 26   | 0.0263014603406  | 4    | -88%       |        (not enough runs) 0.0000 |
+| TPC-H 4        | 0.102194160223  | 13   | 0.102906867862   | 13   | +1%        |                          0.5527 |
+| TPC-H 5      Y | 0.123629011214  | 15   | 0.123487263918   | 15   | -0%        |                          0.8346 |
+| TPC-H 6        | 0.382442891598  | 46   | 0.40026023984    | 49   | +5%        |                          0.0007 |
+| TPC-H 7        | 0.0415439866483 | 5    | 0.0413809865713  | 5    | -0%        |        (not enough runs) 0.6523 |
+| TPC-H 8      Y | 0.241899907589  | 30   | 0.00558691937476 | 1    | -98%       |           (not enough runs) nan |
+| TPC-H 9      Y | 0.0534801147878 | 7    | 0.0050798994489  | 1    | -91%       |           (not enough runs) nan |
+| TPC-H 10       | 0.0999271124601 | 12   | 0.0918122753501  | 12   | -8%        |                          0.0000 |
+| TPC-H 11       | 1.32582592964   | 160  | 1.3329526186     | 160  | +1%        |                          0.2013 |
+| TPC-H 12       | 0.362900882959  | 44   | 0.334512799978   | 41   | -8%        |                          0.0000 |
+| TPC-H 13       | 0.0735384523869 | 9    | 0.0742614120245  | 9    | +1%        |        (not enough runs) 0.6456 |
+| TPC-H 14     Y | 0.772601246834  | 93   | 0.00435410346836 | 1    | -99%       |           (not enough runs) nan |
+| TPC-H 15       | 0.622954368591  | 75   | 0.615468323231   | 74   | -1%        |                          0.0007 |
+| TPC-H 16       | 0.360707849264  | 44   | 0.361891001463   | 44   | +0%        |                          0.5046 |
+| TPC-H 17     Y | 0.0295911300927 | 4    | 0.00386895751581 | 1    | -87%       |           (not enough runs) nan |
+| TPC-H 18       | 0.081690967083  | 10   | 0.0846856981516  | 11   | +4%        |                          0.0335 |
+| TPC-H 19       | 0.236484691501  | 29   | 0.237277761102   | 29   | +0%        |                          0.2455 |
+| TPC-H 20       | 0.0644487515092 | 8    | 0.0648381859064  | 8    | +1%        |        (not enough runs) 0.1189 |
+| TPC-H 21       | 0.0136448312551 | 2    | 0.0139385713264  | 2    | +2%        |        (not enough runs) 0.4019 |
+| TPC-H 22       | 0.43804743886   | 53   | 0.438911646605   | 53   | +0%        |                          0.6113 |
+| geometric mean |                 |      |                  |      | -55%       |                                 |
++----------------+-----------------+------+------------------+------+------------+---------------------------------+
+```
+
+#### Effect of additional IndexJoinPlacementRule + Additional PredicateReorderingRule
+
+SF 1.0
+
 In this version, the projection operator was modified. Now a projection forwards single-column indices.  
 
 version without IndexJoinPlacementRule: `535c3391ef191f899d5a9d0be889c191ba1a9da8`  
