@@ -13,6 +13,10 @@
 
 namespace opossum {
 
+// TODO(Marcel) we have to do further experiments to find the threshold or
+// generally the conditions for using an index join.
+constexpr float INDEX_JOIN_RATIO_THRESHOLD = 0.1f;
+
 std::string JoinIndexPlacementRule::name() const { return "JoinIndex Placement Rule"; }
 
 void JoinIndexPlacementRule::apply_to(const std::shared_ptr<AbstractLQPNode>& node) const {
@@ -104,26 +108,40 @@ JoinInputSide JoinIndexPlacementRule::_is_join_index_applicable_locally(
   const auto& left_input_node = join_node->left_input();
   const auto& right_input_node = join_node->right_input();
 
+  // Let's get the StoredTable nodes of the join input node chains.
+  // Since this function is only called, when no additional join node exists as input recursively,
+  // we can assume that each input node has only one left input node.
+  std::shared_ptr<AbstractLQPNode> left_input_stored_table_node = left_input_node;
+  std::shared_ptr<AbstractLQPNode> right_input_stored_table_node = right_input_node;
+
+  while (left_input_stored_table_node->type != LQPNodeType::StoredTable) {
+    left_input_stored_table_node = left_input_stored_table_node->left_input();
+  }
+
+  while (right_input_stored_table_node->type != LQPNodeType::StoredTable) {
+    right_input_stored_table_node = right_input_stored_table_node->left_input();
+  }
+
+  Assert(left_input_stored_table_node->type == LQPNodeType::StoredTable,
+         "Left stored table node for join node could not be found.");
+  Assert(right_input_stored_table_node->type == LQPNodeType::StoredTable,
+         "Right stored table node for join node could not be found.");
+
   Assert(left_input_node && right_input_node, "A JoinNode is expected to have two input nodes.");
-  const auto& left_input_table_statistics = left_input_node->get_statistics();
-  const auto& right_input_table_statistics = right_input_node->get_statistics();
+  const auto& left_input_original_table_row_count = left_input_stored_table_node->get_statistics()->row_count();
+  const auto& right_input_original_table_row_count = right_input_stored_table_node->get_statistics()->row_count();
 
-  const auto& left_input_row_count = left_input_table_statistics->approx_valid_row_count();
-  const auto& right_input_row_count = right_input_table_statistics->approx_valid_row_count();
-
-  // TODO(Marcel) we have to do further experiments to find the threshold or
-  // generally the conditions for using an index join.
-  float size_factor = 0.1f;
   const auto predicate_expressions = join_node->join_predicates();
   // for now, only place a JoinIndex for inner single predicate joins
   if (join_node->join_mode == JoinMode::Inner && predicate_expressions.size() == 1) {
     auto join_predicate = OperatorJoinPredicate::from_expression(*predicate_expressions[0], *join_node->left_input(),
                                                                  *join_node->right_input());
     if (join_predicate) {
-      if (left_input_row_count < size_factor * right_input_row_count &&
+      if (left_input_original_table_row_count < INDEX_JOIN_RATIO_THRESHOLD * right_input_original_table_row_count &&
           _is_index_on_join_column(right_input_node, join_predicate->column_ids.second)) {
         return JoinInputSide::Right;
-      } else if (right_input_row_count < size_factor * left_input_row_count &&
+      } else if (right_input_original_table_row_count <
+                     INDEX_JOIN_RATIO_THRESHOLD * left_input_original_table_row_count &&
                  _is_index_on_join_column(left_input_node, join_predicate->column_ids.first)) {
         return JoinInputSide::Left;
       }
