@@ -78,7 +78,7 @@ std::shared_ptr<const Table> Projection::_on_execute() {
         const auto pqp_column_expression = std::static_pointer_cast<PQPColumnExpression>(expression);
         const auto output_segment = input_chunk->get_segment(pqp_column_expression->column_id);
         // TODO(Marcel) get all Indices
-        const auto output_index = input_chunk->get_index(SegmentIndexType::GroupKey, {output_segment});
+        const auto output_index = input_chunk->get_index(SegmentIndexType::BTree, {output_segment});
         if (output_index) {
           output_indices.emplace_back(output_index);
         }
