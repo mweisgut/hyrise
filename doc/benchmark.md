@@ -1,3 +1,34 @@
+#### 2019-05-20: Effect of additional IndexJoinPlacementRule + additional PredicateReorderingRule
+
+Now the JoinIndexPlacementRule checks the row counts of the original data tables. Previously the row count of the output tables of a join node's inputs nodes were used.  
+
+version without new rules: `7a7327fe461900155bbf4c24e85d3efb2d2857a8`  
+version with new rules: `c57809b85283eb110346685e1abba89b34193723`  
+
+SF 1.0  
+
+#####Query Plan Evaluation
+
+|Query ID|LQP left row count|LQP right row count|LQP smaller row count / larger row count|PQP left row count|PQP right row count|PQP smaller row count / larger row count|
+|--------|------------------|-------------------|----------------------------------------|------------------|-------------------|----------------------------------------|
+|8			 |200,000					  |6,001,215					|0.0333265847														 |200,000						|6,001,215					|0.0333265847														 |
+|9			 |200,000						|6,001,215					|0.0333265847														 |200,000						|6,001,215					|0.0333265847														 |
+|14			 |6,001,215					|200,000						|0.0333265847														 |6,001,215					|200,000						|0.0333265847														 |
+|17			 |6,001,215					|200,000						|0.0333265847														 |6,001,215					|200,000						|0.0333265847														 |
+|19			 |6,001,215					|200,000						|0.0333265847														 |6,001,215					|200,000						|0.0333265847 												|
+  
+
+#####Benchmark Results
+
+| Benchmark      | prev. iter/s   | runs | new iter/s     | runs | change [%] | p-value (significant if <0.001) |
+|----------------|----------------|------|----------------|------|------------|---------------------------------|
+| TPC-H 8        | 2.73871946335  | 165  | 0.41283261776  | 25   | -85%       |                          0.0000 |
+| TPC-H 9        | 0.771609425545 | 47   | 0.312071979046 | 19   | -60%       |                          0.0000 |
+| TPC-H 14       | 12.3342638016  | 741  | 0.270524173975 | 17   | -98%       |                          0.0000 |
+| TPC-H 17       | 0.804330229759 | 49   | 0.21412576735  | 13   | -73%       |                          0.0000 |
+| TPC-H 19       | 2.84414768219  | 171  | 0.246438637376 | 15   | -91%       |                          0.0000 |
+| geometric mean |                |      |                |      | -87%       |                                 |
+
 #### Effect of additional IndexJoinPlacementRule + Additional PredicateReorderingRule
 
 SF 10.0
