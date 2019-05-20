@@ -1,5 +1,23 @@
 #### 2019-05-20: Effect of additional IndexJoinPlacementRule + additional PredicateReorderingRule
 
+Replaced GroupKeyIndex by BTree Index.  
+
+version without new rules: `8383313322f64030f62e6b325bae618cd8042026`  
+version with new rules: `c57809b85283eb110346685e1abba89b34193723`  
+
+SF 1.0   
+
+| Benchmark      | prev. iter/s   | runs | new iter/s     | runs | change [%] | p-value (significant if <0.001) |
+|----------------|----------------|------|----------------|------|------------|---------------------------------|
+| TPC-H 8        | 2.73871946335  | 165  | 0.323936700821 | 20   | -88%       |                          0.0000 |
+| TPC-H 9        | 0.771609425545 | 47   | 0.254928290844 | 16   | -67%       |                          0.0000 |
+| TPC-H 14       | 12.3342638016  | 741  | 0.248107999563 | 15   | -98%       |                          0.0000 |
+| TPC-H 17       | 0.804330229759 | 49   | 0.19298478961  | 12   | -76%       |                          0.0000 |
+| TPC-H 19       | 2.84414768219  | 171  | 0.226619407535 | 14   | -92%       |                          0.0000 |
+| geometric mean |                |      |                |      | -89%       |                                 |
+
+#### 2019-05-20: Effect of additional IndexJoinPlacementRule + additional PredicateReorderingRule
+
 Now the JoinIndexPlacementRule checks the row counts of the original data tables. Previously the row count of the output tables of a join node's inputs nodes were used.  
 
 version without new rules: `7a7327fe461900155bbf4c24e85d3efb2d2857a8`  
