@@ -1,5 +1,22 @@
 #### 2019-05-20: Effect of additional IndexJoinPlacementRule + additional PredicateReorderingRule
 
+In this version, the join index table ratio has to be less than 0.1.  
+
+SF 1.0  
+
+version without new rules: `2416724991fc3e3e97bda19793853bf95d69dd84`  
+version with new rules: `79afd515ee5b25d6971d1905f8433796fd9446f0`  
+
+| Benchmark      | prev. iter/s   | runs | new iter/s     | runs | change [%] | p-value (significant if <0.001) |
+|----------------|----------------|------|----------------|------|------------|---------------------------------|
+| TPC-H 8        | 2.5950717926   | 156  | 4.74868106842  | 285  | +83%       |                          0.0000 |
+| TPC-H 9        | 0.784150958061 | 48   | 0.844296753407 | 51   | +8%        |                          0.0000 |
+| geometric mean |                |      |                |      | +40%       |                                 |
+
+
+
+#### 2019-05-20: Effect of additional IndexJoinPlacementRule + additional PredicateReorderingRule
+
 Replaced GroupKeyIndex by BTree Index.  
 
 version without new rules: `8383313322f64030f62e6b325bae618cd8042026`  
