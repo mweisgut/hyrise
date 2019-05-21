@@ -316,11 +316,13 @@ std::shared_ptr<AbstractOperator> LQPTranslator::_translate_join_node(
 
   // Chose JoinIndex is the join node has one of the intput tables as index primary table.
   if (join_node->index_primary_table_side() == JoinInputSide::Left) {
-    // TODO(Marcel) support all index types here or block them for the index creation
+    std::cout << "INDEX JOIN"
+              << "\n";
     return std::make_shared<JoinIndex>(input_left_operator, input_right_operator, join_node->join_mode,
                                        primary_join_predicate);
   } else if (join_node->index_primary_table_side() == JoinInputSide::Right) {
-    // TODO(Marcel) support all index types here or block them for the index creation
+    std::cout << "INDEX JOIN"
+              << "\n";
     return std::make_shared<JoinIndex>(input_left_operator, input_right_operator, join_node->join_mode,
                                        primary_join_predicate);
   }

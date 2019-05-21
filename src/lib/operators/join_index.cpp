@@ -285,7 +285,7 @@ std::shared_ptr<Table> JoinIndex::_perform_join_right_reference_table() {
             // WARNING! The SegmentIndexType is hard coded for the benchmark experiment here.
             // TODO(anyone) modify passing the SegmentIndexType
             const auto& index_scan_on_data_table = std::make_shared<IndexScan>(
-                referenced_data_table_wrapper, SegmentIndexType::BTree, data_table_index_column_ids,
+                referenced_data_table_wrapper, SegmentIndexType::GroupKey, data_table_index_column_ids,
                 _primary_predicate.predicate_condition, right_values);
             auto right_data_table_matches = index_scan_on_data_table->execute_matches_calculation();
 
