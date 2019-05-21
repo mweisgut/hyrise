@@ -26,14 +26,16 @@ void JoinIndexPlacementRule::apply_to(const std::shared_ptr<AbstractLQPNode>& no
   std::vector<std::shared_ptr<PredicateNode>> left_predicates_to_pull_up;
   std::vector<std::shared_ptr<PredicateNode>> right_predicates_to_pull_up;
 
-  _place_join_node_recursively(root_node, LQPInputSide::Left, left_predicates_to_pull_up, right_predicates_to_pull_up);
+  _place_join_node_recursively(root_node, LQPInputSide::Left, left_predicates_to_pull_up, right_predicates_to_pull_up, nullptr,
+    JoinInputSide::None);
 }
 
 bool JoinIndexPlacementRule::_place_join_node_recursively(
     const std::shared_ptr<AbstractLQPNode>& node, const LQPInputSide input_side,
     std::vector<std::shared_ptr<PredicateNode>>& left_predicates_to_pull_up,
     std::vector<std::shared_ptr<PredicateNode>>& right_predicates_to_pull_up,
-    const std::shared_ptr<JoinNode>& latest_join_node) const {
+    const std::shared_ptr<JoinNode>& latest_join_node,
+    JoinInputSide join_input_side) const {
   const auto input_node = node->input(input_side);
 
   if (input_node) {
@@ -42,16 +44,21 @@ bool JoinIndexPlacementRule::_place_join_node_recursively(
     if (updated_latest_join_node) {
       left_predicates_to_pull_up.clear();
       right_predicates_to_pull_up.clear();
+      if(input_side == LQPInputSide::Left){
+        join_input_side = JoinInputSide::Left;
+      }else{
+        join_input_side = JoinInputSide::Right;
+      }
     } else {
       updated_latest_join_node = latest_join_node;
     }
 
     const bool is_join_in_left_subtree =
         _place_join_node_recursively(input_node, LQPInputSide::Left, left_predicates_to_pull_up,
-                                     right_predicates_to_pull_up, updated_latest_join_node);
+                                     right_predicates_to_pull_up, updated_latest_join_node, join_input_side);
     const bool is_join_in_right_subtree =
         _place_join_node_recursively(input_node, LQPInputSide::Right, left_predicates_to_pull_up,
-                                     right_predicates_to_pull_up, updated_latest_join_node);
+                                     right_predicates_to_pull_up, updated_latest_join_node, join_input_side);
 
     bool is_join_in_subtrees = is_join_in_left_subtree || is_join_in_right_subtree;
 
@@ -62,12 +69,17 @@ bool JoinIndexPlacementRule::_place_join_node_recursively(
         return true;
       }
       case LQPNodeType::Predicate: {
+        // TODO(Marcel) with join_input_side as parameter, latest_join_node can be removed.
+        // TODO(Marcel) use join_input_side != None instead.
         if (latest_join_node && !is_join_in_subtrees) {
           const auto predicate_node = std::dynamic_pointer_cast<PredicateNode>(input_node);
-          if (input_side == LQPInputSide::Left) {
+          if (join_input_side == JoinInputSide::Left) {
             left_predicates_to_pull_up.emplace_back(predicate_node);
-          } else if (input_side == LQPInputSide::Right) {
+          } else if (join_input_side == JoinInputSide::Right) {
             right_predicates_to_pull_up.emplace_back(predicate_node);
+          } else{
+            // TODO(Marcel) remove
+            std::cout << "INVALID STATE" << std::endl;
           }
         }
         break;
@@ -205,6 +217,8 @@ bool JoinIndexPlacementRule::_is_index_on_join_column(const std::shared_ptr<cons
       std::cout << "index col ids: " << index_column_ids[0] << "\n";
     }
     if (index_column_ids.size() == 1 && index_column_ids[0] == join_column_id) {
+      std::cout << "INDEX AVAILABLE"
+            << "\n";
       return true;
     }
   }
