@@ -318,10 +318,8 @@ std::shared_ptr<AbstractOperator> LQPTranslator::_translate_join_node(
   if (join_node->index_primary_table_side() == JoinInputSide::Left) {
     std::cout << "INDEX JOIN (LEFT is data)"
               << "\n";
-    auto flipped_join_predicate = primary_join_predicate;
-    flipped_join_predicate.flip();
-    return std::make_shared<JoinIndex>(input_right_operator, input_left_operator, join_node->join_mode,
-                                       flipped_join_predicate);
+    return std::make_shared<JoinIndex>(input_left_operator, input_right_operator, join_node->join_mode,
+                                       primary_join_predicate);
   } else if (join_node->index_primary_table_side() == JoinInputSide::Right) {
     std::cout << "INDEX JOIN (RIGHT is data)"
               << "\n";
