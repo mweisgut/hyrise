@@ -14,6 +14,11 @@ version with new rules: `79afd515ee5b25d6971d1905f8433796fd9446f0`
 | geometric mean |                |      |                |      | +40%       |                                 |
 
 
+|Q ID|LQP left rows|LQP right rows|LQP smaller rows / larger rows|PQP left rows|PQP right rows|PQP smaller rows / larger rows|
+|----|-------------|--------------|------------------------------|-------------|--------------|----------------------------|
+|8	 |1,333.3  		 |6,001,215			|0,000222172									 |1,362			   |6,001,215			|0,000226954								 |
+|9   |20,000		 	 |6,001,215			|0,003332658	 								 |10,922 			 |6,001,215			|0,001819965 								 |
+
 
 #### 2019-05-20: Effect of additional IndexJoinPlacementRule + additional PredicateReorderingRule
 
