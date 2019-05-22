@@ -26,7 +26,7 @@ class JoinIndex : public AbstractJoinOperator {
 
   JoinIndex(const std::shared_ptr<const AbstractOperator>& left, const std::shared_ptr<const AbstractOperator>& right,
             const JoinMode mode, const OperatorJoinPredicate& primary_predicate,
-            const std::vector<OperatorJoinPredicate>& secondary_predicates = {});
+            const std::vector<OperatorJoinPredicate>& secondary_predicates = {}, const bool tables_swapped = false);
 
   const std::string name() const override;
 
@@ -68,6 +68,8 @@ class JoinIndex : public AbstractJoinOperator {
 
   void _on_cleanup() override;
 
+  // TODO(Marcel) find a better naming, see JoinHash
+  bool _tables_swapped;
   std::shared_ptr<Table> _output_table;
 
   std::shared_ptr<PosList> _pos_list_left;
