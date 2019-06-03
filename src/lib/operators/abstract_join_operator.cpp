@@ -74,6 +74,7 @@ std::shared_ptr<Table> AbstractJoinOperator::_build_output_table(std::vector<std
 
   TableColumnDefinitions output_column_definitions;
 
+  std::cout << "pre preparing out table by adding segments from left table" << "\n";
   // Preparing output table by adding segments from left table
   for (ColumnID column_id{0}; column_id < left_in_table->column_count(); ++column_id) {
     const auto nullable = (left_may_produce_null || left_in_table->column_is_nullable(column_id));
@@ -81,6 +82,7 @@ std::shared_ptr<Table> AbstractJoinOperator::_build_output_table(std::vector<std
                                            left_in_table->column_data_type(column_id), nullable);
   }
 
+  std::cout << "pre preparing out table by adding segments from right table" << "\n";
   // Preparing output table by adding segments from right table
   if (_mode != JoinMode::Semi && _mode != JoinMode::AntiNullAsTrue && _mode != JoinMode::AntiNullAsFalse) {
     for (ColumnID column_id{0}; column_id < right_in_table->column_count(); ++column_id) {
@@ -89,7 +91,7 @@ std::shared_ptr<Table> AbstractJoinOperator::_build_output_table(std::vector<std
                                              right_in_table->column_data_type(column_id), nullable);
     }
   }
-
+  std::cout << "return build table" << "\n";
   return std::make_shared<Table>(output_column_definitions, table_type, std::move(chunks));
 }
 

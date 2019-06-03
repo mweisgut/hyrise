@@ -77,11 +77,12 @@ std::shared_ptr<Table> JoinIndex::_perform_join() {
     optional_index_input_table = input_table_right();
     mandatory_index_input_table = input_table_left();
     primary_predicate.flip();
+    std::cout << "swapped" << "\n";
   } else {
     optional_index_input_table = input_table_left();
     mandatory_index_input_table = input_table_right();
   }
-
+  
   // TODO(Marcel) improve naming
   _right_matches.resize(mandatory_index_input_table->chunk_count());
   _left_matches.resize(optional_index_input_table->chunk_count());
@@ -128,10 +129,13 @@ std::shared_ptr<Table> JoinIndex::_perform_join() {
     std::shared_ptr<BaseIndex> index = nullptr;
 
     if (!indices.empty()) {
+      std::cout << "indices not empty" << "\n";
       // We assume the first index to be efficient for our join
       // as we do not want to spend time on evaluating the best index inside of this join loop
       index = indices.front();
     }
+
+
 
     // Scan all chunks from left input
     if (index) {
@@ -139,7 +143,6 @@ std::shared_ptr<Table> JoinIndex::_perform_join() {
            ++chunk_id_left) {
         const auto segment_left =
             optional_index_input_table->get_chunk(chunk_id_left)->get_segment(primary_predicate.column_ids.first);
-
         segment_with_iterators(*segment_left, [&](auto it, const auto end) {
           _join_two_segments_using_index(it, end, chunk_id_left, chunk_id_right, index);
         });
