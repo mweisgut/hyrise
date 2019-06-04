@@ -139,7 +139,6 @@ std::shared_ptr<Table> JoinIndex::_perform_join() {
       }
       performance_data.chunks_scanned_with_index++;
     } else {
-      // std::cout << "FALLBACK" << std::endl;
       // Fall back to NestedLoopJoin
       const auto segment_right =
           right_input_table->get_chunk(chunk_id_right)->get_segment(primary_predicate.column_ids.second);
