@@ -58,7 +58,9 @@ std::shared_ptr<const Table> JoinIndex::_on_execute() {
                   !_secondary_predicates.empty()),
          "JoinHash doesn't support these parameters");
 
-  if (_mode == JoinMode::Inner && input_table_right()->type() == TableType::References &&
+  if (_mode == JoinMode::Inner &&
+    ((!_tables_swapped && input_table_right()->type() == TableType::References)
+      || (_tables_swapped && input_table_left()->type() == TableType::References)) &&
       _secondary_predicates.empty()) {
     return _perform_join_right_reference_table();
   } else {
@@ -74,6 +76,7 @@ std::shared_ptr<Table> JoinIndex::_perform_join() {
   auto primary_predicate = _primary_predicate;
 
   if (_tables_swapped) {
+    // std::cout << "swapped" << "\n";
     left_input_table = input_table_right();
     right_input_table = input_table_left();
     primary_predicate.flip();
@@ -140,6 +143,7 @@ std::shared_ptr<Table> JoinIndex::_perform_join() {
       performance_data.chunks_scanned_with_index++;
     } else {
       // Fall back to NestedLoopJoin
+      std::cout << "FALLBACK" << "\n";
       const auto segment_right =
           right_input_table->get_chunk(chunk_id_right)->get_segment(primary_predicate.column_ids.second);
       for (ChunkID chunk_id_left = ChunkID{0}; chunk_id_left < left_input_table->chunk_count(); ++chunk_id_left) {
