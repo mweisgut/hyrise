@@ -96,8 +96,8 @@ class JoinIndexTest : public BaseTest {
     EXPECT_NE(expected_result, nullptr) << "Could not load expected result table";
 
     // build and execute join
-    auto join = std::make_shared<JoinIndex>(left, right, mode, primary_predicate,
-      std::vector<OperatorJoinPredicate>{}, swap_index_join_tables);
+    auto join = std::make_shared<JoinIndex>(left, right, mode, primary_predicate, std::vector<OperatorJoinPredicate>{},
+                                            swap_index_join_tables);
     EXPECT_NE(join, nullptr) << "Could not build Join";
     join->execute();
 
@@ -118,8 +118,7 @@ class JoinIndexTest : public BaseTest {
       _table_wrapper_m, _table_wrapper_n;
 };
 
-typedef ::testing::Types<AdaptiveRadixTreeIndex, CompositeGroupKeyIndex, BTreeIndex, GroupKeyIndex>
-    DerivedIndices;
+typedef ::testing::Types<AdaptiveRadixTreeIndex, CompositeGroupKeyIndex, BTreeIndex, GroupKeyIndex> DerivedIndices;
 
 TYPED_TEST_CASE(JoinIndexTest, DerivedIndices, );  // NOLINT(whitespace/parens)
 

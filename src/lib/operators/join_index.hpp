@@ -68,7 +68,6 @@ class JoinIndex : public AbstractJoinOperator {
 
   void _on_cleanup() override;
 
-  // TODO(Marcel) find a better naming, see JoinHash
   bool _tables_swapped;
   std::shared_ptr<Table> _output_table;
 
