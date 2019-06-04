@@ -2,6 +2,8 @@
 
 SF 1.0
 
+**This benchmark comparison is inaccurate. The second benchmark contains debug prints which increases the runtime.**
+
 version without new rules: `7e25d2bd84e1a489364bb443c891de934cf68cb8`  
 version with new rules: `5cc7825ccc4abb23033165b5a85a25672d0ac549` 
 
