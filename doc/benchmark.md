@@ -1,3 +1,67 @@
+#### 2019-06-09 #4
+
+SF 5, Query 17
+Comparison: no additional rule vs IndexJoinPl'Rule + additional Pred'Reord'Rule.  
+Same versions as in the previous experiment.  
+
+```
++----------------+-----------------+------+-----------------+------+------------+---------------------------------+
+| Benchmark      | prev. iter/s    | runs | new iter/s      | runs | change [%] | p-value (significant if <0.001) |
++----------------+-----------------+------+-----------------+------+------------+---------------------------------+
+| TPC-H 17       | 0.0781910046935 | 5    | 0.0837142467499 | 6    | +7%        |        (not enough runs) 0.0000 |
+| geometric mean |                 |      |                 |      | +7%        |                                 |
++----------------+-----------------+------+-----------------+------+------------+---------------------------------+
+```
+
+#### 2019-06-09 #3
+
+SF 10, Query 17
+Comparison: no additional rule vs IndexJoinPl'Rule + additional Pred'Reord'Rule.  
+Same versions as in the previous experiment.  
+
+```
++----------------+-----------------+------+-----------------+------+------------+---------------------------------+
+| Benchmark      | prev. iter/s    | runs | new iter/s      | runs | change [%] | p-value (significant if <0.001) |
++----------------+-----------------+------+-----------------+------+------------+---------------------------------+
+| TPC-H 17       | 0.0288852453232 | 2    | 0.0300217363983 | 2    | +4%        |        (not enough runs) 0.0924 |
+| geometric mean |                 |      |                 |      | +4%        |                                 |
++----------------+-----------------+------+-----------------+------+------------+---------------------------------+
+```
+
+#### 2019-06-09 #2
+
+SF 1, **runs 19**, Query 17
+Comparison: no additional rule vs IndexJoinPl'Rule + additional Pred'Reord'Rule.  
+Same versions as in the previous experiment.  
+
+This comparison result is much better than result `2019-06-09 #1` because in iteration 20, a failure manipulates the result.
+Even if the number of runs is not satisfactory, the result indicates that the JoinIndex improves the performance of query 17.
+
+```
++----------------+--------------+------+----------------+------+------------+---------------------------------+
+| Benchmark      | prev. iter/s | runs | new iter/s     | runs | change [%] | p-value (significant if <0.001) |
++----------------+--------------+------+----------------+------+------------+---------------------------------+
+| TPC-H 17       | 0.769967556  | 19   | 0.953152835369 | 19   | +24%       |     (run time too short) 0.0000 |
+| geometric mean |              |      |                |      | +24%       |                                 |
++----------------+--------------+------+----------------+------+------------+---------------------------------+
+```
+
+#### 2019-06-09 #1
+
+SF 1, **runs 20**, Query 17  
+Comparison: no additional rule vs IndexJoinPl'Rule + additional Pred'Reord'Rule.  
+Same versions as in the previous experiment.  
+
+```
++----------------+----------------+------+----------------+------+------------+---------------------------------+
+| Benchmark      | prev. iter/s   | runs | new iter/s     | runs | change [%] | p-value (significant if <0.001) |
++----------------+----------------+------+----------------+------+------------+---------------------------------+
+| TPC-H 17       | 0.794617414474 | 20   | 0.572405636311 | 20   | -28%       |     (run time too short) 0.4595 |
+| geometric mean |                |      |                |      | -28%       |                                 |
++----------------+----------------+------+----------------+------+------------+---------------------------------+
+```
+Same versions as in the previous benchmark.
+
 #### 2019-06-04: Effect of additional IndexJoinPlacementRule + additional PredicateReorderingRule
 
 SF 1.0
