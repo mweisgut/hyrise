@@ -2,8 +2,8 @@
 
 SF 1  
 
-version without new rule: `fb3300d8a35ec18ba565022420434421839e906c`
-version with new rule: `fd507508ffce336a809ab702f3f26fb732950cc9`
+version without new rule: `fb3300d8a35ec18ba565022420434421839e906c`  
+version with new rule: `fd507508ffce336a809ab702f3f26fb732950cc9`  
 
 ```
 +----------------+----------------+------+----------------+------+------------+---------------------------------+
