@@ -85,6 +85,7 @@ void collect_subquery_expressions_by_lqp(SubqueryExpressionsByLQP& subquery_expr
 namespace opossum {
 
 std::shared_ptr<Optimizer> Optimizer::create_default_optimizer() {
+  // std::cout << "create default optimizer" << "\n";
   auto optimizer = std::make_shared<Optimizer>();
 
   optimizer->add_rule(std::make_unique<ExpressionReductionRule>());
@@ -113,9 +114,9 @@ std::shared_ptr<Optimizer> Optimizer::create_default_optimizer() {
 
   optimizer->add_rule(std::make_unique<IndexScanRule>());
 
-  optimizer->add_rule(std::make_unique<JoinIndexPlacementRule>());
+  // optimizer->add_rule(std::make_unique<JoinIndexPlacementRule>());
 
-  optimizer->add_rule(std::make_unique<PredicateReorderingRule>());
+  // optimizer->add_rule(std::make_unique<PredicateReorderingRule>());
 
   return optimizer;
 }
