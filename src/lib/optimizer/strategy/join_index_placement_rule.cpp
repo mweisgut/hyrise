@@ -26,38 +26,33 @@ void JoinIndexPlacementRule::apply_to(const std::shared_ptr<AbstractLQPNode>& no
   std::vector<std::shared_ptr<PredicateNode>> left_predicates_to_pull_up;
   std::vector<std::shared_ptr<PredicateNode>> right_predicates_to_pull_up;
 
-  _place_join_node_recursively(root_node, LQPInputSide::Left, left_predicates_to_pull_up, right_predicates_to_pull_up,
-                               nullptr, JoinInputSide::None);
+  _place_join_node_recursively(root_node, LQPInputSide::Left, left_predicates_to_pull_up, right_predicates_to_pull_up, JoinInputSide::None);
 }
 
 bool JoinIndexPlacementRule::_place_join_node_recursively(
     const std::shared_ptr<AbstractLQPNode>& node, const LQPInputSide input_side,
     std::vector<std::shared_ptr<PredicateNode>>& left_predicates_to_pull_up,
     std::vector<std::shared_ptr<PredicateNode>>& right_predicates_to_pull_up,
-    const std::shared_ptr<JoinNode>& latest_join_node, JoinInputSide join_input_side) const {
+    const JoinInputSide join_input_side) const {
   const auto input_node = node->input(input_side);
 
   if (input_node) {
-    std::shared_ptr<JoinNode> updated_latest_join_node = std::dynamic_pointer_cast<JoinNode>(input_node);
+    std::shared_ptr<JoinNode> join_node = std::dynamic_pointer_cast<JoinNode>(input_node);
 
     auto left_subtree_predicate_assignment_side = join_input_side;
     auto right_subtree_predicate_assignment_side = join_input_side;
 
-    if (updated_latest_join_node) {
+    if (join_node) {
       left_predicates_to_pull_up.clear();
       right_predicates_to_pull_up.clear();
       left_subtree_predicate_assignment_side = JoinInputSide::Left;
       right_subtree_predicate_assignment_side = JoinInputSide::Right;
-    } else {
-      updated_latest_join_node = latest_join_node;
     }
 
     const bool is_join_in_left_subtree = _place_join_node_recursively(
-        input_node, LQPInputSide::Left, left_predicates_to_pull_up, right_predicates_to_pull_up,
-        updated_latest_join_node, left_subtree_predicate_assignment_side);
+        input_node, LQPInputSide::Left, left_predicates_to_pull_up, right_predicates_to_pull_up, left_subtree_predicate_assignment_side);
     const bool is_join_in_right_subtree = _place_join_node_recursively(
-        input_node, LQPInputSide::Right, left_predicates_to_pull_up, right_predicates_to_pull_up,
-        updated_latest_join_node, right_subtree_predicate_assignment_side);
+        input_node, LQPInputSide::Right, left_predicates_to_pull_up, right_predicates_to_pull_up, right_subtree_predicate_assignment_side);
 
     bool is_join_in_subtrees = is_join_in_left_subtree || is_join_in_right_subtree;
 
@@ -68,9 +63,7 @@ bool JoinIndexPlacementRule::_place_join_node_recursively(
         return true;
       }
       case LQPNodeType::Predicate: {
-        // TODO(Marcel) with join_input_side as parameter, latest_join_node can be removed.
-        // TODO(Marcel) use join_input_side != None instead.
-        if (latest_join_node && !is_join_in_subtrees) {
+        if (join_input_side != JoinInputSide::None && !is_join_in_subtrees) {
           const auto predicate_node = std::dynamic_pointer_cast<PredicateNode>(input_node);
           if (join_input_side == JoinInputSide::Left) {
             left_predicates_to_pull_up.emplace_back(predicate_node);
@@ -82,9 +75,9 @@ bool JoinIndexPlacementRule::_place_join_node_recursively(
       }
       case LQPNodeType::Join: {
         if (!is_join_in_subtrees) {
-          const auto applicability_result = _is_join_index_applicable_locally(updated_latest_join_node);
+          const auto applicability_result = _is_join_index_applicable_locally(join_node);
           if (applicability_result.primary_index_side != JoinInputSide::None) {
-            updated_latest_join_node->set_index_primary_table_side(applicability_result.primary_index_side);
+            join_node->set_index_primary_table_side(applicability_result.primary_index_side);
 
             // the JoinNode has no JoinNode as input recursively
             Assert(input_node->output_count() == 1, "A join node is expected to have exactly one output node.");
@@ -112,7 +105,7 @@ bool JoinIndexPlacementRule::_place_join_node_recursively(
             // link the chain into the LQP
             if (pull_up_chain_end != pull_up_chain_root) {
               node->set_input(input_side, pull_up_chain_root->left_input());
-              pull_up_chain_end->set_left_input(updated_latest_join_node);
+              pull_up_chain_end->set_left_input(join_node);
               left_predicates_to_pull_up.clear();
               right_predicates_to_pull_up.clear();
             }
@@ -172,33 +165,20 @@ JoinIndexApplicabilityResult JoinIndexPlacementRule::_is_join_index_applicable_l
       // case 2: right_stored_table_row_count < THRESHOLD * left_stored_table_row_count
       // case 3: left_row_count < THRESHOLD * right_stored_table_row_count
       // case 4: right_row_count < THRESHOLD * left_stored_table_row_count
-      // std::cout << "case 1 ratio: " << left_stored_table_row_count / right_stored_table_row_count << "\n";
-      // std::cout << "case 2 ratio: " << right_stored_table_row_count / left_stored_table_row_count << "\n";
-      // std::cout << "case 3 ratio: " << left_row_count / right_stored_table_row_count << "\n";
-      // std::cout << "case 4 ratio: " << right_row_count / left_stored_table_row_count << "\n";
-
       if (left_stored_table_row_count < INDEX_JOIN_RATIO_THRESHOLD * right_stored_table_row_count &&
           _is_index_on_join_column(right_input_stored_table_node, join_predicate->column_ids.second)) {
-        // std::cout << "CASE 1"
-        //           << "\n";
         return JoinIndexApplicabilityResult{JoinInputSide::Right, true, true};
 
       } else if (right_stored_table_row_count < INDEX_JOIN_RATIO_THRESHOLD * left_stored_table_row_count &&
                  _is_index_on_join_column(left_input_stored_table_node, join_predicate->column_ids.first)) {
-        // std::cout << "CASE 2"
-        //           << "\n";
         return JoinIndexApplicabilityResult{JoinInputSide::Left, true, true};
 
       } else if (left_row_count < INDEX_JOIN_RATIO_THRESHOLD * right_stored_table_row_count &&
                  _is_index_on_join_column(right_input_stored_table_node, join_predicate->column_ids.second)) {
-        // std::cout << "CASE 3"
-        //           << "\n";
         return JoinIndexApplicabilityResult{JoinInputSide::Right, false, true};
 
       } else if (right_row_count < INDEX_JOIN_RATIO_THRESHOLD * left_stored_table_row_count &&
                  _is_index_on_join_column(left_input_stored_table_node, join_predicate->column_ids.first)) {
-        // std::cout << "CASE 4"
-        //           << "\n";
         return JoinIndexApplicabilityResult{JoinInputSide::Left, true, false};
       }
     }

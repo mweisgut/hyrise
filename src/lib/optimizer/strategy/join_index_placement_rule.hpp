@@ -31,8 +31,7 @@ class JoinIndexPlacementRule : public AbstractRule {
   bool _place_join_node_recursively(const std::shared_ptr<AbstractLQPNode>& node, const LQPInputSide input_side,
                                     std::vector<std::shared_ptr<PredicateNode>>& left_predicates_to_pull_up,
                                     std::vector<std::shared_ptr<PredicateNode>>& right_predicates_to_pull_up,
-                                    const std::shared_ptr<JoinNode>& latest_join_node,
-                                    JoinInputSide join_input_side) const;
+                                    const JoinInputSide join_input_side) const;
   JoinIndexApplicabilityResult _is_join_index_applicable_locally(const std::shared_ptr<JoinNode>& join_node) const;
   bool _is_index_on_join_column(const std::shared_ptr<const AbstractLQPNode>& larger_join_input_node,
                                 const ColumnID join_column_id) const;

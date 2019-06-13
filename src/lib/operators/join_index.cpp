@@ -46,7 +46,8 @@ const std::string JoinIndex::name() const { return "JoinIndex"; }
 std::shared_ptr<AbstractOperator> JoinIndex::_on_deep_copy(
     const std::shared_ptr<AbstractOperator>& copied_input_left,
     const std::shared_ptr<AbstractOperator>& copied_input_right) const {
-  return std::make_shared<JoinIndex>(copied_input_left, copied_input_right, _mode, _primary_predicate);
+  return std::make_shared<JoinIndex>(copied_input_left, copied_input_right, _mode, _primary_predicate,
+                                     std::vector<OperatorJoinPredicate>{}, _tables_swapped);
 }
 
 void JoinIndex::_on_set_parameters(const std::unordered_map<ParameterID, AllTypeVariant>& parameters) {}
@@ -59,8 +60,8 @@ std::shared_ptr<const Table> JoinIndex::_on_execute() {
          "JoinHash doesn't support these parameters");
 
   if (_mode == JoinMode::Inner &&
-    ((!_tables_swapped && input_table_right()->type() == TableType::References)
-      || (_tables_swapped && input_table_left()->type() == TableType::References)) &&
+      ((!_tables_swapped && input_table_right()->type() == TableType::References) ||
+       (_tables_swapped && input_table_left()->type() == TableType::References)) &&
       _secondary_predicates.empty()) {
     return _perform_join_right_reference_table();
   } else {
@@ -69,14 +70,13 @@ std::shared_ptr<const Table> JoinIndex::_on_execute() {
 }
 
 std::shared_ptr<Table> JoinIndex::_perform_join() {
-  // std::cout << "DATA TABLE INDEX JOIN"
-  //           << "\n";
+  std::cout << "DATA TABLE INDEX JOIN"
+            << "\n";
   std::shared_ptr<const Table> left_input_table;
   std::shared_ptr<const Table> right_input_table;
   auto primary_predicate = _primary_predicate;
 
   if (_tables_swapped) {
-    // std::cout << "swapped" << "\n";
     left_input_table = input_table_right();
     right_input_table = input_table_left();
     primary_predicate.flip();
@@ -143,7 +143,8 @@ std::shared_ptr<Table> JoinIndex::_perform_join() {
       performance_data.chunks_scanned_with_index++;
     } else {
       // Fall back to NestedLoopJoin
-      std::cout << "FALLBACK" << "\n";
+      std::cout << "FALLBACK"
+                << "\n";
       const auto segment_right =
           right_input_table->get_chunk(chunk_id_right)->get_segment(primary_predicate.column_ids.second);
       for (ChunkID chunk_id_left = ChunkID{0}; chunk_id_left < left_input_table->chunk_count(); ++chunk_id_left) {
@@ -236,6 +237,8 @@ std::shared_ptr<Table> JoinIndex::_perform_join() {
 }
 
 std::shared_ptr<Table> JoinIndex::_perform_join_right_reference_table() {
+  std::cout << "REF INDEX JOIN"
+            << "\n";
   std::vector<ColumnID> data_table_index_column_ids;
 
   // get referenced data table
