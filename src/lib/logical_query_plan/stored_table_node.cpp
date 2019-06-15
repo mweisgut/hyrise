@@ -105,6 +105,8 @@ std::shared_ptr<TableStatistics> StoredTableNode::derive_statistics_from(
 
   auto output_column_statistics = std::vector<std::shared_ptr<const BaseColumnStatistics>>{
       stored_statistics->column_statistics().size() - _pruned_column_ids.size()};
+  auto output_column_ids =
+      std::vector<std::optional<ColumnID>>(stored_statistics->column_statistics().size(), std::nullopt);
 
   auto pruned_column_ids_iter = _pruned_column_ids.begin();
 
@@ -115,13 +117,32 @@ std::shared_ptr<TableStatistics> StoredTableNode::derive_statistics_from(
       ++pruned_column_ids_iter;
       continue;
     }
-
+    output_column_ids[stored_column_id] = output_column_id;
     output_column_statistics[output_column_id] = stored_statistics->column_statistics()[stored_column_id];
     ++output_column_id;
   }
 
+  // adapt index statistics
+  auto output_index_statistics = std::vector<IndexStatistics>{};
+  output_index_statistics.reserve(stored_statistics->index_statistics().size());
+  for (auto index_statistics : stored_statistics->index_statistics()) {
+    auto func_index_columns_pruned = [&]() -> bool {
+      for (auto index_column_id : index_statistics.column_ids) {
+        if (!output_column_ids[index_column_id]) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (!func_index_columns_pruned()) {
+      //TODO(Marcel) adapt the index statistics: use the new column ids
+      output_index_statistics.emplace_back(index_statistics);
+    }
+  }
+
   return std::make_shared<TableStatistics>(stored_statistics->table_type(), stored_statistics->row_count(),
-                                           output_column_statistics);
+                                           output_column_statistics, output_index_statistics);
 }
 
 std::shared_ptr<AbstractLQPNode> StoredTableNode::_on_shallow_copy(LQPNodeMapping& node_mapping) const {

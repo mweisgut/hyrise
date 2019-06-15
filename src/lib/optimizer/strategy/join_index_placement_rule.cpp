@@ -26,7 +26,8 @@ void JoinIndexPlacementRule::apply_to(const std::shared_ptr<AbstractLQPNode>& no
   std::vector<std::shared_ptr<PredicateNode>> left_predicates_to_pull_up;
   std::vector<std::shared_ptr<PredicateNode>> right_predicates_to_pull_up;
 
-  _place_join_node_recursively(root_node, LQPInputSide::Left, left_predicates_to_pull_up, right_predicates_to_pull_up, JoinInputSide::None);
+  _place_join_node_recursively(root_node, LQPInputSide::Left, left_predicates_to_pull_up, right_predicates_to_pull_up,
+                               JoinInputSide::None);
 }
 
 bool JoinIndexPlacementRule::_place_join_node_recursively(
@@ -49,10 +50,12 @@ bool JoinIndexPlacementRule::_place_join_node_recursively(
       right_subtree_predicate_assignment_side = JoinInputSide::Right;
     }
 
-    const bool is_join_in_left_subtree = _place_join_node_recursively(
-        input_node, LQPInputSide::Left, left_predicates_to_pull_up, right_predicates_to_pull_up, left_subtree_predicate_assignment_side);
-    const bool is_join_in_right_subtree = _place_join_node_recursively(
-        input_node, LQPInputSide::Right, left_predicates_to_pull_up, right_predicates_to_pull_up, right_subtree_predicate_assignment_side);
+    const bool is_join_in_left_subtree =
+        _place_join_node_recursively(input_node, LQPInputSide::Left, left_predicates_to_pull_up,
+                                     right_predicates_to_pull_up, left_subtree_predicate_assignment_side);
+    const bool is_join_in_right_subtree =
+        _place_join_node_recursively(input_node, LQPInputSide::Right, left_predicates_to_pull_up,
+                                     right_predicates_to_pull_up, right_subtree_predicate_assignment_side);
 
     bool is_join_in_subtrees = is_join_in_left_subtree || is_join_in_right_subtree;
 

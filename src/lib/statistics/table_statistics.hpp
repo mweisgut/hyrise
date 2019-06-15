@@ -37,7 +37,7 @@ class TableStatistics final {
   float row_count() const;
   uint64_t approx_valid_row_count() const;
   const std::vector<std::shared_ptr<const BaseColumnStatistics>>& column_statistics() const;
-  const std::vector<IndexStatistics> index_statistics() const;
+  const std::vector<IndexStatistics>& index_statistics() const;
   /** @} */
 
   /**

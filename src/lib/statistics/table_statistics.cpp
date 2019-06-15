@@ -28,7 +28,7 @@ const std::vector<std::shared_ptr<const BaseColumnStatistics>>& TableStatistics:
   return _column_statistics;
 }
 
-const std::vector<IndexStatistics> TableStatistics::index_statistics() const { return _index_statistics; }
+const std::vector<IndexStatistics>& TableStatistics::index_statistics() const { return _index_statistics; }
 
 TableStatistics TableStatistics::estimate_predicate(const ColumnID column_id,
                                                     const PredicateCondition predicate_condition,
