@@ -20,6 +20,7 @@ namespace opossum {
 class AbstractLQPNode;
 class JoinNode;
 class PredicateNode;
+class StoredTableNode;
 
 class JoinIndexPlacementRule : public AbstractRule {
  public:
