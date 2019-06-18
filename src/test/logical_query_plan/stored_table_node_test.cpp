@@ -28,8 +28,11 @@ class StoredTableNodeTest : public BaseTest {
     table_t_a->create_index<GroupKeyIndex>({ColumnID{0}},"i_a1");
     table_t_a->create_index<GroupKeyIndex>({ColumnID{0}},"i_a2");
     table_t_a->create_index<GroupKeyIndex>({ColumnID{1}},"i_b");
+    std::cout << "table index statistics: " << table_t_a->indexes_statistics().size() << "\n";
+    std::cout << "storage manager table ind stat: " << StorageManager::get().get_table("t_a")->indexes_statistics().size() << "\n";
 
     _stored_table_node = StoredTableNode::make("t_a");
+    std::cout << "stored table index statistics: " << _stored_table_node->get_statistics()->index_statistics().size() << "\n";
     _a = LQPColumnReference(_stored_table_node, ColumnID{0});
     _b = LQPColumnReference(_stored_table_node, ColumnID{1});
 

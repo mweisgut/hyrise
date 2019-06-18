@@ -93,9 +93,12 @@ std::shared_ptr<TableStatistics> StoredTableNode::derive_statistics_from(
     const std::shared_ptr<AbstractLQPNode>& left_input, const std::shared_ptr<AbstractLQPNode>& right_input) const {
   DebugAssert(!left_input && !right_input, "StoredTableNode must be leaf");
 
+  std::cout << "table name: " << table_name << "\n";
   const auto stored_statistics = StorageManager::get().get_table(table_name)->table_statistics();
+  std::cout << "index statistics: " << StorageManager::get().get_table("t_a")->indexes_statistics().size() << "\n";
 
   if (_pruned_column_ids.empty()) {
+    std::cout << "stored statistics:" << stored_statistics->index_statistics().size() << "\n";
     return stored_statistics;
   }
 
