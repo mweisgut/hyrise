@@ -155,24 +155,30 @@ std::vector<IndexStatistics> StoredTableNode::indexes_statistics() const{
     column_left_shifts[column_index] = number_of_shifts;
   }
 
+  std::cout << "pruned cols:" << "\n";
+  for(auto col_to_prune : _pruned_column_ids){
+    std::cout << col_to_prune << "\n";
+  }
+
   // update index statistics
   for (auto stored_index_stats_iter = stored_indexes_statistics.begin(), end = stored_indexes_statistics.end();
-    stored_index_stats_iter != end;){
+    stored_index_stats_iter != end; ++stored_index_stats_iter){
+
     auto update_index_statistics = [&](){
       for(auto& index_column_id : (*stored_index_stats_iter).column_ids){
+        std::cout << "column id: " << index_column_id << "\n";
         if(column_pruned_bitvector[index_column_id]){
           // column was pruned, we cannot use the index anymore.
-          stored_index_stats_iter = stored_indexes_statistics.erase(stored_index_stats_iter);
+          stored_indexes_statistics.erase(stored_index_stats_iter);
+          std::cout << "PRUNED" << "\n";
           return;
         }else{
           index_column_id -= column_left_shifts[index_column_id];
-          ++stored_index_stats_iter;
         }
       }
     };
     update_index_statistics();
   }
-
   return stored_indexes_statistics;
 }
 

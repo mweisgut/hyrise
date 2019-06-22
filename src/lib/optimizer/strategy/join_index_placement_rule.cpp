@@ -191,13 +191,14 @@ JoinIndexApplicabilityResult JoinIndexPlacementRule::_is_join_index_applicable_l
 bool JoinIndexPlacementRule::_is_index_on_join_column(const std::shared_ptr<const AbstractLQPNode>& larger_join_input_node,
                                                       const ColumnID join_column_id) const {
   const auto& stored_table_node = std::dynamic_pointer_cast<const StoredTableNode>(larger_join_input_node);
-  const auto table = StorageManager::get().get_table(stored_table_node->table_name);
-
-  for (const auto& index_statistics : table->indexes_statistics()) {
+  std::cout << "0" << "\n";
+  for (const auto& index_statistics : stored_table_node->indexes_statistics()) {
     const auto index_column_ids = index_statistics.column_ids;
+    std::cout << "1" << "\n";
     if (index_column_ids.size() == 1 && index_column_ids[0] == join_column_id) {
       return true;
     }
+    std::cout << "2" << "\n";
   }
 
   return false;
