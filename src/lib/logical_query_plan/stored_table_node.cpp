@@ -125,55 +125,48 @@ std::shared_ptr<TableStatistics> StoredTableNode::derive_statistics_from(
                                            output_column_statistics);
 }
 
-std::vector<IndexStatistics> StoredTableNode::indexes_statistics() const{
+std::vector<IndexStatistics> StoredTableNode::indexes_statistics() const {
   DebugAssert(!left_input && !right_input, "StoredTableNode must be a leaf");
 
   const auto table = StorageManager::get().get_table(table_name);
   auto stored_indexes_statistics = table->indexes_statistics();
 
-  if(_pruned_column_ids.empty()) {
+  if (_pruned_column_ids.empty()) {
     return stored_indexes_statistics;
   }
 
   auto column_pruned_bitvector = std::vector<bool>();
   auto column_left_shifts = std::vector<ColumnID>();
-  
+
   column_pruned_bitvector.resize(table->column_count());
   column_left_shifts.resize(table->column_count());
 
   // Fill the bitvector
-  for(const auto& pruned_column_id : _pruned_column_ids){
+  for (const auto& pruned_column_id : _pruned_column_ids) {
     column_pruned_bitvector[pruned_column_id] = true;
   }
 
   // Calculate left_shifts
   auto number_of_shifts = ColumnID{0};
-  for(auto column_index = ColumnID{0}; column_index < column_pruned_bitvector.size(); ++column_index){
-    if(column_pruned_bitvector[column_index]){
+  for (auto column_index = ColumnID{0}; column_index < column_pruned_bitvector.size(); ++column_index) {
+    if (column_pruned_bitvector[column_index]) {
       ++number_of_shifts;
     }
     column_left_shifts[column_index] = number_of_shifts;
   }
 
-  std::cout << "pruned cols:" << "\n";
-  for(auto col_to_prune : _pruned_column_ids){
-    std::cout << col_to_prune << "\n";
-  }
-
   // update index statistics
-  for (auto stored_index_stats_iter = stored_indexes_statistics.begin(), end = stored_indexes_statistics.end();
-    stored_index_stats_iter != end; ++stored_index_stats_iter){
-
-    auto update_index_statistics = [&](){
-      for(auto& index_column_id : (*stored_index_stats_iter).column_ids){
-        std::cout << "column id: " << index_column_id << "\n";
-        if(column_pruned_bitvector[index_column_id]){
+  for (auto stored_index_stats_iter = stored_indexes_statistics.begin();
+       stored_index_stats_iter != stored_indexes_statistics.end();) {
+    auto update_index_statistics = [&]() {
+      for (auto& index_column_id : (*stored_index_stats_iter).column_ids) {
+        if (column_pruned_bitvector[index_column_id]) {
           // column was pruned, we cannot use the index anymore.
           stored_indexes_statistics.erase(stored_index_stats_iter);
-          std::cout << "PRUNED" << "\n";
           return;
-        }else{
+        } else {
           index_column_id -= column_left_shifts[index_column_id];
+          ++stored_index_stats_iter;
         }
       }
     };

@@ -25,9 +25,9 @@ class StoredTableNodeTest : public BaseTest {
 
     const auto& table_t_a = StorageManager::get().get_table("t_a");
     ChunkEncoder::encode_all_chunks(table_t_a);
-    table_t_a->create_index<GroupKeyIndex>({ColumnID{0}},"i_a1");
-    table_t_a->create_index<GroupKeyIndex>({ColumnID{0}},"i_a2");
-    table_t_a->create_index<GroupKeyIndex>({ColumnID{1}},"i_b");
+    table_t_a->create_index<GroupKeyIndex>({ColumnID{0}}, "i_a1");
+    table_t_a->create_index<GroupKeyIndex>({ColumnID{0}}, "i_a2");
+    table_t_a->create_index<GroupKeyIndex>({ColumnID{1}}, "i_b");
 
     _stored_table_node = StoredTableNode::make("t_a");
     _a = LQPColumnReference(_stored_table_node, ColumnID{0});
