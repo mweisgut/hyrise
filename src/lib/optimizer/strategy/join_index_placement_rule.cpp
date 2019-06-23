@@ -28,7 +28,8 @@ void JoinIndexPlacementRule::apply_to(const std::shared_ptr<AbstractLQPNode>& no
   std::vector<std::shared_ptr<PredicateNode>> left_predicates_to_pull_up;
   std::vector<std::shared_ptr<PredicateNode>> right_predicates_to_pull_up;
 
-  _place_join_node_recursively(root_node, LQPInputSide::Left, left_predicates_to_pull_up, right_predicates_to_pull_up, JoinInputSide::None);
+  _place_join_node_recursively(root_node, LQPInputSide::Left, left_predicates_to_pull_up, right_predicates_to_pull_up,
+                               JoinInputSide::None);
 }
 
 bool JoinIndexPlacementRule::_place_join_node_recursively(
@@ -51,10 +52,12 @@ bool JoinIndexPlacementRule::_place_join_node_recursively(
       right_subtree_predicate_assignment_side = JoinInputSide::Right;
     }
 
-    const bool is_join_in_left_subtree = _place_join_node_recursively(
-        input_node, LQPInputSide::Left, left_predicates_to_pull_up, right_predicates_to_pull_up, left_subtree_predicate_assignment_side);
-    const bool is_join_in_right_subtree = _place_join_node_recursively(
-        input_node, LQPInputSide::Right, left_predicates_to_pull_up, right_predicates_to_pull_up, right_subtree_predicate_assignment_side);
+    const bool is_join_in_left_subtree =
+        _place_join_node_recursively(input_node, LQPInputSide::Left, left_predicates_to_pull_up,
+                                     right_predicates_to_pull_up, left_subtree_predicate_assignment_side);
+    const bool is_join_in_right_subtree =
+        _place_join_node_recursively(input_node, LQPInputSide::Right, left_predicates_to_pull_up,
+                                     right_predicates_to_pull_up, right_subtree_predicate_assignment_side);
 
     bool is_join_in_subtrees = is_join_in_left_subtree || is_join_in_right_subtree;
 
@@ -188,17 +191,14 @@ JoinIndexApplicabilityResult JoinIndexPlacementRule::_is_join_index_applicable_l
   return JoinIndexApplicabilityResult{JoinInputSide::None, false, false};
 }
 
-bool JoinIndexPlacementRule::_is_index_on_join_column(const std::shared_ptr<const AbstractLQPNode>& larger_join_input_node,
-                                                      const ColumnID join_column_id) const {
+bool JoinIndexPlacementRule::_is_index_on_join_column(
+    const std::shared_ptr<const AbstractLQPNode>& larger_join_input_node, const ColumnID join_column_id) const {
   const auto& stored_table_node = std::dynamic_pointer_cast<const StoredTableNode>(larger_join_input_node);
-  std::cout << "0" << "\n";
   for (const auto& index_statistics : stored_table_node->indexes_statistics()) {
     const auto index_column_ids = index_statistics.column_ids;
-    std::cout << "1" << "\n";
     if (index_column_ids.size() == 1 && index_column_ids[0] == join_column_id) {
       return true;
     }
-    std::cout << "2" << "\n";
   }
 
   return false;
