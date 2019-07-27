@@ -23,7 +23,7 @@ version with new rule: `fd507508ffce336a809ab702f3f26fb732950cc9`
 
 #### 2019-06-11 #1
 
-The reason for the wrong execution of iteration 20 was related with the physical query plan cache: In iteration 20 the used sql string is available in the cache so the PQP is taken from this PQP cache. When the PQP is stored in the cache, `_on_deep_copy` is calles for each operator. Since the swap mechanism was implemented for the JoinIndex, the JoinIndex has a new member variable `_tables_swapped`.
+The reason for the wrong execution of iteration 20 was related with the physical query plan cache: In iteration 20 the used sql string is available in the cache so the PQP is taken from this PQP cache. When the PQP is stored in the cache, `_on_deep_copy` is called for each operator. Since the swap mechanism was implemented for the JoinIndex, the JoinIndex has a new member variable `_tables_swapped`.
 This variable was previously not set for `_on_deep_copy`. Therefore the default value (`false`) was used. 
 
 In this benchmark comparison, this bug is fixed.
