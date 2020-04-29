@@ -1,6 +1,5 @@
-#include "gtest/gtest.h"
-
 #include "base_test.hpp"
+
 #include "expression/expression_functional.hpp"
 #include "logical_query_plan/abstract_lqp_node.hpp"
 #include "logical_query_plan/aggregate_node.hpp"
@@ -54,11 +53,11 @@ TEST_F(LQPUtilsTest, LQPSubplanToBooleanExpression_B) {
   // clang-format off
   const auto lqp =
   PredicateNode::make(greater_than_(a_a, 4),
-    UnionNode::make(UnionMode::Positions,
+    UnionNode::make(SetOperationMode::Positions,
       PredicateNode::make(greater_than_(a_a, 5),
         PredicateNode::make(less_than_(a_a, 50),
           node_a)),
-      UnionNode::make(UnionMode::Positions,
+      UnionNode::make(SetOperationMode::Positions,
         PredicateNode::make(greater_than_(a_a, 450), node_a),
         PredicateNode::make(less_than_(a_a, 500), node_a))));
   // clang-format on
@@ -105,7 +104,7 @@ TEST_F(LQPUtilsTest, LQPSubplanToBooleanExpressionBeginEndNode) {
 TEST_F(LQPUtilsTest, VisitLQP) {
   // clang-format off
   const auto expected_nodes = std::vector<std::shared_ptr<AbstractLQPNode>>{
-    PredicateNode::make(greater_than_(a_a, 4)), UnionNode::make(UnionMode::Positions),
+    PredicateNode::make(greater_than_(a_a, 4)), UnionNode::make(SetOperationMode::Positions),
     PredicateNode::make(less_than_(a_a, 4)), PredicateNode::make(equals_(a_a, 4)), node_a};
   // clang-format on
 
@@ -132,6 +131,30 @@ TEST_F(LQPUtilsTest, VisitLQP) {
     visit_lqp(std::static_pointer_cast<PredicateNode>(expected_nodes[0]), [&](const auto& node) {
       actual_nodes.emplace_back(node);
       return LQPVisitation::VisitInputs;
+    });
+
+    EXPECT_EQ(actual_nodes, expected_nodes);
+  }
+}
+
+TEST_F(LQPUtilsTest, VisitLQPUpwards) {
+  // clang-format off
+  const auto expected_nodes = std::vector<std::shared_ptr<AbstractLQPNode>>{node_a,
+    PredicateNode::make(greater_than_(a_a, 4)), PredicateNode::make(less_than_(a_a, 4)),
+    UnionNode::make(SetOperationMode::Positions), PredicateNode::make(equals_(a_a, 4))};
+  // clang-format on
+
+  expected_nodes[4]->set_left_input(expected_nodes[3]);
+  expected_nodes[3]->set_left_input(expected_nodes[1]);
+  expected_nodes[3]->set_right_input(expected_nodes[2]);
+  expected_nodes[1]->set_left_input(node_a);
+  expected_nodes[2]->set_left_input(node_a);
+
+  {
+    auto actual_nodes = std::vector<std::shared_ptr<AbstractLQPNode>>{};
+    visit_lqp_upwards(node_a, [&](const auto& node) {
+      actual_nodes.emplace_back(node);
+      return LQPUpwardVisitation::VisitOutputs;
     });
 
     EXPECT_EQ(actual_nodes, expected_nodes);

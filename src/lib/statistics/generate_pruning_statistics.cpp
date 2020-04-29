@@ -43,6 +43,12 @@ void create_pruning_statistics_for_segment(AttributeStatistics<T>& segment_stati
 namespace opossum {
 
 void generate_chunk_pruning_statistics(const std::shared_ptr<Chunk>& chunk) {
+  if (chunk->pruning_statistics()) {
+    // Pruning statistics should be stable no matter what encoding or sort order is used. Hence, when they are present
+    // they are up to date and we can skip the recreation.
+    return;
+  }
+
   auto chunk_statistics = ChunkPruningStatistics{chunk->column_count()};
 
   for (auto column_id = ColumnID{0}; column_id < chunk->column_count(); ++column_id) {
@@ -81,7 +87,8 @@ void generate_chunk_pruning_statistics(const std::shared_ptr<Chunk>& chunk) {
 }
 
 void generate_chunk_pruning_statistics(const std::shared_ptr<Table>& table) {
-  for (auto chunk_id = ChunkID{0}; chunk_id < table->chunk_count(); ++chunk_id) {
+  const auto chunk_count = table->chunk_count();
+  for (auto chunk_id = ChunkID{0}; chunk_id < chunk_count; ++chunk_id) {
     const auto chunk = table->get_chunk(chunk_id);
 
     if (!chunk || chunk->is_mutable()) {

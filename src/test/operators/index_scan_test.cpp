@@ -5,8 +5,8 @@
 #include <vector>
 
 #include "base_test.hpp"
-#include "gtest/gtest.h"
 
+#include "hyrise.hpp"
 #include "logical_query_plan/lqp_translator.hpp"
 #include "logical_query_plan/predicate_node.hpp"
 #include "logical_query_plan/stored_table_node.hpp"
@@ -47,12 +47,12 @@ class OperatorsIndexScanTest : public BaseTest {
     _column_ids = std::vector<ColumnID>{ColumnID{0u}};
 
     for (const auto& chunk_id : _chunk_ids) {
-      auto chunk = int_int_7->get_chunk(chunk_id);
+      const auto chunk = int_int_7->get_chunk(chunk_id);
       chunk->template create_index<DerivedIndex>(_column_ids);
     }
 
     for (const auto& chunk_id : _chunk_ids_partly_compressed) {
-      auto chunk = int_int_5->get_chunk(chunk_id);
+      const auto chunk = int_int_5->get_chunk(chunk_id);
       chunk->template create_index<DerivedIndex>(_column_ids);
     }
 
@@ -65,7 +65,7 @@ class OperatorsIndexScanTest : public BaseTest {
     ChunkEncoder::encode_all_chunks(partially_indexed_table);
     const auto second_chunk = partially_indexed_table->get_chunk(ChunkID{1});
     second_chunk->template create_index<DerivedIndex>(std::vector<ColumnID>{ColumnID{0}});
-    StorageManager::get().add_table("index_test_table", partially_indexed_table);
+    Hyrise::get().storage_manager.add_table("index_test_table", partially_indexed_table);
   }
 
   void ASSERT_COLUMN_EQ(std::shared_ptr<const Table> table, const ColumnID& column_id,
@@ -103,9 +103,9 @@ class OperatorsIndexScanTest : public BaseTest {
 
 typedef ::testing::Types<GroupKeyIndex, AdaptiveRadixTreeIndex, CompositeGroupKeyIndex,
                          BTreeIndex /* add further indexes */>
-    DerivedIndexes;
+    SingleSegmentIndexTypes;
 
-TYPED_TEST_CASE(OperatorsIndexScanTest, DerivedIndexes, );  // NOLINT(whitespace/parens)
+TYPED_TEST_SUITE(OperatorsIndexScanTest, SingleSegmentIndexTypes, );  // NOLINT(whitespace/parens)
 
 TYPED_TEST(OperatorsIndexScanTest, SingleColumnScanOnDataTable) {
   // we do not need to check for a non existing value, because that happens automatically when we scan the second chunk
@@ -294,7 +294,7 @@ TYPED_TEST(OperatorsIndexScanTest, AddedChunk) {
   ASSERT_TRUE(get_table);
 
   // Add values:
-  const auto table = StorageManager::get().get_table("index_test_table");
+  const auto table = Hyrise::get().storage_manager.get_table("index_test_table");
   table->append({4, 5});
   EXPECT_EQ(table->chunk_count(), 3);
 

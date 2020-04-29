@@ -2,8 +2,6 @@
 #include <memory>
 #include <vector>
 
-#include "gtest/gtest.h"
-
 #include "base_test.hpp"
 
 #include "expression/abstract_expression.hpp"
@@ -11,7 +9,6 @@
 #include "logical_query_plan/lqp_utils.hpp"
 #include "logical_query_plan/mock_node.hpp"
 #include "logical_query_plan/projection_node.hpp"
-#include "storage/storage_manager.hpp"
 
 using namespace opossum::expression_functional;  // NOLINT
 
@@ -40,7 +37,7 @@ TEST_F(ProjectionNodeTest, Description) {
   EXPECT_EQ(_projection_node->description(), "[Projection] c, a, b, b + c, a + c");
 }
 
-TEST_F(ProjectionNodeTest, Equals) {
+TEST_F(ProjectionNodeTest, HashingAndEqualityCheck) {
   EXPECT_EQ(*_projection_node, *_projection_node);
 
   const auto different_projection_node_a =
@@ -49,6 +46,9 @@ TEST_F(ProjectionNodeTest, Equals) {
       ProjectionNode::make(expression_vector(_c, _a, _b, add_(_b, _c)), _mock_node);
   EXPECT_NE(*_projection_node, *different_projection_node_a);
   EXPECT_NE(*_projection_node, *different_projection_node_b);
+
+  EXPECT_NE(_projection_node->hash(), different_projection_node_a->hash());
+  EXPECT_NE(_projection_node->hash(), different_projection_node_b->hash());
 }
 
 TEST_F(ProjectionNodeTest, Copy) { EXPECT_EQ(*_projection_node->deep_copy(), *_projection_node); }

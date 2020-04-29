@@ -1,6 +1,6 @@
 # https://github.com/hyrise/hyrise/wiki/Docker-Image
 
-FROM ubuntu:19.04
+FROM ubuntu:20.04
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update \
     && apt-get install -y \
@@ -8,40 +8,39 @@ RUN apt-get update \
         bash-completion \
         bc \
         ccache \
-        clang-7 \
-        clang-format-7 \
-        clang-tidy-7 \
+        clang-9 \
+        clang-10 \
+        clang-format-9 \
+        clang-tidy-9 \
         cmake \
         curl \
+        g++-9 \
+        gcc-9 \
         gcovr \
-        gcc-8 \
-        g++-8 \
-        graphviz \
         git \
-        $(apt-cache search --names-only '^libboost1.[0-9]+-all-dev$' | sort | tail -n 1 | cut -f1 -d' ') \
-        libclang-7-dev \
-        libnuma-dev \
+        graphviz \
+        libboost1.71-all-dev \
+        libhwloc-dev \
         libncurses5-dev \
+        libnuma-dev \
         libnuma1 \
+        libpq-dev \
         libreadline-dev \
         libsqlite3-dev \
         libtbb-dev \
-        llvm \
-        llvm-7-tools \
+        lld \
+        lsb-release \
         man \
         parallel \
-        python2.7 \
-        python-pip \
-        python-pexpect \
-        python-glob2 \
+        postgresql-server-dev-all \
+        python3 \
+        python3-pexpect \
         sudo \
-        valgrind \
-        libpq-dev \
         systemtap \
         systemtap-sdt-dev \
+        valgrind \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     && ln -sf /usr/bin/llvm-symbolizer-3.8 /usr/bin/llvm-symbolizer
 
 ENV OPOSSUM_HEADLESS_SETUP=true
-

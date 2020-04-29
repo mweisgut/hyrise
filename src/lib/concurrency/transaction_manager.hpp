@@ -7,7 +7,6 @@
 #include <unordered_set>
 
 #include "types.hpp"
-#include "utils/singleton.hpp"
 
 /**
  * MVCC overview
@@ -48,18 +47,19 @@ class TransactionContext;
  * which represents the current global visibility of records.
  * The TransactionManager is thread-safe.
  */
-class TransactionManager : public Singleton<TransactionManager> {
+class TransactionManager : public Noncopyable {
   friend class TransactionManagerTest;
 
  public:
-  static void reset();
-
   CommitID last_commit_id() const;
 
   /**
    * Creates a new transaction context
+   * @param is_auto_commit declares whether the transaction is created (and will also commit) automatically. The
+   * alternative would be that it was created through a user command (BEGIN). This information is used by the
+   * SQLPipelineStatement to auto-commit the transaction - the transaction does not commit itself.
    */
-  std::shared_ptr<TransactionContext> new_transaction_context();
+  std::shared_ptr<TransactionContext> new_transaction_context(const AutoCommit auto_commit);
 
   /**
    * Returns the lowest snapshot-commit-id currently used by a transaction.
@@ -68,9 +68,12 @@ class TransactionManager : public Singleton<TransactionManager> {
 
  private:
   TransactionManager();
+  ~TransactionManager();
 
-  friend class Singleton;
+  friend class Hyrise;
   friend class TransactionContext;
+
+  TransactionManager& operator=(TransactionManager&& transaction_manager) noexcept;
 
   std::shared_ptr<CommitContext> _new_commit_context();
   void _try_increment_last_commit_id(const std::shared_ptr<CommitContext>& context);

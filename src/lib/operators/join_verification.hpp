@@ -11,8 +11,7 @@ namespace opossum {
  */
 class JoinVerification : public AbstractJoinOperator {
  public:
-  static bool supports(JoinMode join_mode, PredicateCondition predicate_condition, DataType left_data_type,
-                       DataType right_data_type, bool secondary_predicates);
+  static bool supports(const JoinConfiguration config);
 
   using Tuple = std::vector<AllTypeVariant>;
 
@@ -21,7 +20,7 @@ class JoinVerification : public AbstractJoinOperator {
                    const OperatorJoinPredicate& primary_predicate,
                    const std::vector<OperatorJoinPredicate>& secondary_predicates = {});
 
-  const std::string name() const override;
+  const std::string& name() const override;
 
  protected:
   std::shared_ptr<const Table> _on_execute() override;

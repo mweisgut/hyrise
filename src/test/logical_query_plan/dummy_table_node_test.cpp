@@ -1,13 +1,13 @@
 #include <memory>
 
-#include "gtest/gtest.h"
+#include "base_test.hpp"
 
 #include "logical_query_plan/dummy_table_node.hpp"
 #include "logical_query_plan/lqp_utils.hpp"
 
 namespace opossum {
 
-class DummyTableNodeTest : public ::testing::Test {
+class DummyTableNodeTest : public BaseTest {
  protected:
   void SetUp() override { _dummy_table_node = DummyTableNode::make(); }
 
@@ -18,9 +18,12 @@ TEST_F(DummyTableNodeTest, Description) { EXPECT_EQ(_dummy_table_node->descripti
 
 TEST_F(DummyTableNodeTest, OutputColumnExpressions) { EXPECT_EQ(_dummy_table_node->column_expressions().size(), 0u); }
 
-TEST_F(DummyTableNodeTest, Equals) {
+TEST_F(DummyTableNodeTest, HashingAndEqualityCheck) {
   EXPECT_EQ(*_dummy_table_node, *_dummy_table_node);
   EXPECT_EQ(*_dummy_table_node, *DummyTableNode::make());
+
+  EXPECT_EQ(_dummy_table_node->hash(), _dummy_table_node->hash());
+  EXPECT_EQ(_dummy_table_node->hash(), DummyTableNode::make()->hash());
 }
 
 TEST_F(DummyTableNodeTest, Copy) { EXPECT_EQ(*_dummy_table_node->deep_copy(), *DummyTableNode::make()); }

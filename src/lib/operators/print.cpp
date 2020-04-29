@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+#include <boost/lexical_cast.hpp>
+
 #include "constant_mappings.hpp"
 #include "operators/table_wrapper.hpp"
 #include "storage/base_encoded_segment.hpp"
@@ -34,7 +36,10 @@ namespace opossum {
 Print::Print(const std::shared_ptr<const AbstractOperator>& in, std::ostream& out, PrintFlags flags)
     : AbstractReadOnlyOperator(OperatorType::Print, in), _out(out), _flags(flags) {}
 
-const std::string Print::name() const { return "Print"; }
+const std::string& Print::name() const {
+  static const auto name = std::string{"Print"};
+  return name;
+}
 
 std::shared_ptr<AbstractOperator> Print::_on_deep_copy(
     const std::shared_ptr<AbstractOperator>& copied_input_left,
@@ -85,8 +90,10 @@ std::shared_ptr<const Table> Print::_on_execute() {
   _out << "|" << std::endl;
 
   // print each chunk
-  for (ChunkID chunk_id{0}; chunk_id < input_table_left()->chunk_count(); ++chunk_id) {
-    auto chunk = input_table_left()->get_chunk(chunk_id);
+  const auto chunk_count = input_table_left()->chunk_count();
+  for (ChunkID chunk_id{0}; chunk_id < chunk_count; ++chunk_id) {
+    const auto chunk = input_table_left()->get_chunk(chunk_id);
+    if (!chunk) continue;
 
     if (!has_print_ignore_chunk_boundaries_flag(_flags)) {
       _out << "=== Chunk " << chunk_id << " ===" << std::endl;
@@ -118,11 +125,11 @@ std::shared_ptr<const Table> Print::_on_execute() {
       }
 
       if (has_print_mvcc_flag(_flags) && chunk->has_mvcc_data()) {
-        auto mvcc_data = chunk->get_scoped_mvcc_data_lock();
+        auto mvcc_data = chunk->mvcc_data();
 
-        auto begin = mvcc_data->begin_cids[chunk_offset];
-        auto end = mvcc_data->end_cids[chunk_offset];
-        auto tid = mvcc_data->tids[chunk_offset];
+        auto begin = mvcc_data->get_begin_cid(chunk_offset);
+        auto end = mvcc_data->get_end_cid(chunk_offset);
+        auto tid = mvcc_data->get_tid(chunk_offset);
 
         auto begin_string = begin == MvccData::MAX_COMMIT_ID ? "" : std::to_string(begin);
         auto end_string = end == MvccData::MAX_COMMIT_ID ? "" : std::to_string(end);
@@ -152,8 +159,10 @@ std::vector<uint16_t> Print::_column_string_widths(uint16_t min, uint16_t max,
   }
 
   // go over all rows and find the maximum length of the printed representation of a value, up to max
-  for (ChunkID chunk_id{0}; chunk_id < input_table_left()->chunk_count(); ++chunk_id) {
-    auto chunk = input_table_left()->get_chunk(chunk_id);
+  const auto chunk_count = input_table_left()->chunk_count();
+  for (ChunkID chunk_id{0}; chunk_id < chunk_count; ++chunk_id) {
+    const auto chunk = input_table_left()->get_chunk(chunk_id);
+    if (!chunk) continue;
 
     for (ColumnID column_id{0}; column_id < chunk->column_count(); ++column_id) {
       for (auto chunk_offset = ChunkOffset{0}; chunk_offset < chunk->size(); ++chunk_offset) {
@@ -167,7 +176,7 @@ std::vector<uint16_t> Print::_column_string_widths(uint16_t min, uint16_t max,
   return widths;
 }
 
-std::string Print::_truncate_cell(const AllTypeVariant& cell, uint16_t max_width) const {
+std::string Print::_truncate_cell(const AllTypeVariant& cell, uint16_t max_width) {
   auto cell_string = boost::lexical_cast<std::string>(cell);
   DebugAssert(max_width > 3, "Cannot truncate string with '...' at end with max_width <= 3");
   if (cell_string.length() > max_width) {
@@ -176,7 +185,7 @@ std::string Print::_truncate_cell(const AllTypeVariant& cell, uint16_t max_width
   return cell_string;
 }
 
-std::string Print::_segment_type(const std::shared_ptr<BaseSegment>& segment) const {
+std::string Print::_segment_type(const std::shared_ptr<BaseSegment>& segment) {
   std::string segment_type;
   segment_type.reserve(8);
   segment_type += "<";

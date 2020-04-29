@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "base_test.hpp"
-#include "gtest/gtest.h"
 
 #include "storage/base_segment.hpp"
 #include "storage/chunk.hpp"
@@ -18,8 +17,8 @@ template <typename DerivedIndex>
 class MultiSegmentIndexTest : public BaseTest {
  protected:
   void SetUp() override {
-    dict_segment_int = BaseTest::create_dict_segment_by_type<int>(DataType::Int, {3, 4, 0, 4, 2, 7, 8, 4, 1, 9});
-    dict_segment_str = BaseTest::create_dict_segment_by_type<pmr_string>(
+    dict_segment_int = create_dict_segment_by_type<int>(DataType::Int, {3, 4, 0, 4, 2, 7, 8, 4, 1, 9});
+    dict_segment_str = create_dict_segment_by_type<pmr_string>(
         DataType::String, {"foo", "bar", "baz", "foo", "bar", "baz", "foo", "bar", "baz", "foo"});
 
     index_int_str = std::make_shared<DerivedIndex>(
@@ -42,15 +41,15 @@ class MultiSegmentIndexTest : public BaseTest {
     return result;
   }
 
-  std::shared_ptr<BaseIndex> index_int_str = nullptr;
-  std::shared_ptr<BaseIndex> index_str_int = nullptr;
+  std::shared_ptr<AbstractIndex> index_int_str = nullptr;
+  std::shared_ptr<AbstractIndex> index_str_int = nullptr;
   std::shared_ptr<BaseSegment> dict_segment_int = nullptr;
   std::shared_ptr<BaseSegment> dict_segment_str = nullptr;
 };
 
 // List of indexes to test
-typedef ::testing::Types<CompositeGroupKeyIndex> DerivedIndexes;
-TYPED_TEST_CASE(MultiSegmentIndexTest, DerivedIndexes, );  // NOLINT(whitespace/parens)
+typedef ::testing::Types<CompositeGroupKeyIndex> MultiSegmentIndexTypes;
+TYPED_TEST_SUITE(MultiSegmentIndexTest, MultiSegmentIndexTypes, );  // NOLINT(whitespace/parens)
 
 TYPED_TEST(MultiSegmentIndexTest, FullRange) {
   auto begin_int_str = this->index_int_str->cbegin();

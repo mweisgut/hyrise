@@ -1,6 +1,6 @@
 #include <unordered_map>
 
-#include "gtest/gtest.h"
+#include "base_test.hpp"
 
 #include "cost_estimation/abstract_cost_estimator.hpp"
 #include "expression/expression_functional.hpp"
@@ -20,7 +20,8 @@ class MockCostEstimator : public AbstractCostEstimator {
  public:
   MockCosts mock_costs;
 
-  explicit MockCostEstimator(const MockCosts& mock_costs) : AbstractCostEstimator(nullptr), mock_costs(mock_costs) {}
+  explicit MockCostEstimator(const MockCosts& init_mock_costs)
+      : AbstractCostEstimator(nullptr), mock_costs(init_mock_costs) {}
 
   std::shared_ptr<AbstractCostEstimator> new_instance() const override { Fail("Shouldn't be called"); }
 
@@ -31,7 +32,7 @@ class MockCostEstimator : public AbstractCostEstimator {
 
 namespace opossum {
 
-class AbstractCostEstimatorTest : public ::testing::Test {
+class AbstractCostEstimatorTest : public BaseTest {
  public:
   void SetUp() override {
     node_a = MockNode::make(MockNode::ColumnDefinitions{{DataType::Int, "a"}}, "a");
@@ -48,7 +49,7 @@ TEST_F(AbstractCostEstimatorTest, DiamondShape) {
   const auto predicate_a = PredicateNode::make(less_than_equals_(a_a, 5), node_a);
   const auto predicate_b = PredicateNode::make(equals_(a_a, 5), predicate_a);
   const auto predicate_c = PredicateNode::make(equals_(a_a, 6), predicate_b);
-  const auto union_node = UnionNode::make(UnionMode::Positions, predicate_b, predicate_c);
+  const auto union_node = UnionNode::make(SetOperationMode::Positions, predicate_b, predicate_c);
 
   const auto mock_costs =
       MockCosts{{node_a, 13.0f}, {predicate_a, 1.0f}, {predicate_b, 3.0f}, {predicate_c, 5.0f}, {union_node, 7.0f}};
@@ -81,7 +82,7 @@ TEST_F(AbstractCostEstimatorTest, PlanCostCacheDiamondShape) {
   const auto predicate_b = PredicateNode::make(equals_(a_a, 5), predicate_a);
   const auto predicate_c = PredicateNode::make(equals_(a_a, 6), predicate_b);
   const auto predicate_d = PredicateNode::make(equals_(a_a, 7), predicate_b);
-  const auto union_node = UnionNode::make(UnionMode::Positions, predicate_d, predicate_c);
+  const auto union_node = UnionNode::make(SetOperationMode::Positions, predicate_d, predicate_c);
 
   const auto mock_costs = MockCosts{{node_a, 13.0f},     {predicate_a, 1.0f},  {predicate_b, 3.0f},
                                     {predicate_c, 5.0f}, {predicate_d, 99.0f}, {union_node, 9.0f}};

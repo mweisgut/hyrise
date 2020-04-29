@@ -12,24 +12,31 @@
 #include "expression/lqp_column_expression.hpp"
 #include "expression/pqp_column_expression.hpp"
 #include "expression/pqp_subquery_expression.hpp"
+#include "hyrise.hpp"
+#include "import_export/file_type.hpp"
 #include "logical_query_plan/aggregate_node.hpp"
+#include "logical_query_plan/change_meta_table_node.hpp"
 #include "logical_query_plan/create_prepared_plan_node.hpp"
 #include "logical_query_plan/create_table_node.hpp"
 #include "logical_query_plan/drop_table_node.hpp"
 #include "logical_query_plan/dummy_table_node.hpp"
+#include "logical_query_plan/export_node.hpp"
+#include "logical_query_plan/import_node.hpp"
 #include "logical_query_plan/join_node.hpp"
 #include "logical_query_plan/limit_node.hpp"
 #include "logical_query_plan/lqp_translator.hpp"
 #include "logical_query_plan/predicate_node.hpp"
 #include "logical_query_plan/projection_node.hpp"
-#include "logical_query_plan/show_columns_node.hpp"
-#include "logical_query_plan/show_tables_node.hpp"
 #include "logical_query_plan/sort_node.hpp"
 #include "logical_query_plan/static_table_node.hpp"
 #include "logical_query_plan/stored_table_node.hpp"
 #include "logical_query_plan/union_node.hpp"
+#include "logical_query_plan/validate_node.hpp"
 #include "operators/aggregate_hash.hpp"
+#include "operators/change_meta_table.hpp"
+#include "operators/export.hpp"
 #include "operators/get_table.hpp"
+#include "operators/import.hpp"
 #include "operators/index_scan.hpp"
 #include "operators/join_hash.hpp"
 #include "operators/join_nested_loop.hpp"
@@ -38,8 +45,6 @@
 #include "operators/maintenance/create_prepared_plan.hpp"
 #include "operators/maintenance/create_table.hpp"
 #include "operators/maintenance/drop_table.hpp"
-#include "operators/maintenance/show_columns.hpp"
-#include "operators/maintenance/show_tables.hpp"
 #include "operators/product.hpp"
 #include "operators/projection.hpp"
 #include "operators/sort.hpp"
@@ -50,7 +55,6 @@
 #include "storage/chunk_encoder.hpp"
 #include "storage/index/group_key/group_key_index.hpp"
 #include "storage/prepared_plan.hpp"
-#include "storage/storage_manager.hpp"
 #include "storage/table.hpp"
 #include "utils/load_table.hpp"
 
@@ -67,13 +71,14 @@ class LQPTranslatorTest : public BaseTest {
     table_int_float5 = load_table("resources/test_data/tbl/int_float5.tbl");
     table_alias_name = load_table("resources/test_data/tbl/table_alias_name.tbl");
 
-    StorageManager::get().add_table("table_int_float", table_int_float);
-    StorageManager::get().add_table("table_int_string", table_int_string);
-    StorageManager::get().add_table("table_int_float2", table_int_float2);
-    StorageManager::get().add_table("table_int_float5", table_int_float5);
-    StorageManager::get().add_table("table_alias_name", table_alias_name);
-    StorageManager::get().add_table("int_float_chunked", load_table("resources/test_data/tbl/int_float.tbl", 1));
-    ChunkEncoder::encode_all_chunks(StorageManager::get().get_table("int_float_chunked"));
+    Hyrise::get().storage_manager.add_table("table_int_float", table_int_float);
+    Hyrise::get().storage_manager.add_table("table_int_string", table_int_string);
+    Hyrise::get().storage_manager.add_table("table_int_float2", table_int_float2);
+    Hyrise::get().storage_manager.add_table("table_int_float5", table_int_float5);
+    Hyrise::get().storage_manager.add_table("table_alias_name", table_alias_name);
+    Hyrise::get().storage_manager.add_table("int_float_chunked",
+                                            load_table("resources/test_data/tbl/int_float.tbl", 1));
+    ChunkEncoder::encode_all_chunks(Hyrise::get().storage_manager.get_table("int_float_chunked"));
 
     int_float_node = StoredTableNode::make("table_int_float");
     int_float_a = int_float_node->get_column("a");
@@ -323,22 +328,19 @@ TEST_F(LQPTranslatorTest, Sort) {
   const auto projection_a = std::dynamic_pointer_cast<const Projection>(pqp);
   ASSERT_TRUE(projection_a);
 
-  const auto sort_a = std::dynamic_pointer_cast<const Sort>(pqp->input_left());
-  ASSERT_TRUE(sort_a);
-  EXPECT_EQ(sort_a->column_id(), ColumnID{1});
-  EXPECT_EQ(sort_a->order_by_mode(), OrderByMode::Ascending);
+  const auto sort = std::dynamic_pointer_cast<const Sort>(pqp->input_left());
+  ASSERT_TRUE(sort);
 
-  const auto sort_a_plus_b = std::dynamic_pointer_cast<const Sort>(sort_a->input_left());
-  ASSERT_TRUE(sort_a_plus_b);
-  EXPECT_EQ(sort_a_plus_b->column_id(), ColumnID{0});
-  EXPECT_EQ(sort_a_plus_b->order_by_mode(), OrderByMode::Descending);
+  EXPECT_EQ(sort->sort_definitions().at(0).column, ColumnID{1});
+  EXPECT_EQ(sort->sort_definitions().at(0).order_by_mode, OrderByMode::Ascending);
 
-  const auto sort_b = std::dynamic_pointer_cast<const Sort>(sort_a_plus_b->input_left());
-  ASSERT_TRUE(sort_b);
-  EXPECT_EQ(sort_b->column_id(), ColumnID{2});
-  EXPECT_EQ(sort_b->order_by_mode(), OrderByMode::AscendingNullsLast);
+  EXPECT_EQ(sort->sort_definitions().at(1).column, ColumnID{0});
+  EXPECT_EQ(sort->sort_definitions().at(1).order_by_mode, OrderByMode::Descending);
 
-  const auto projection_b = std::dynamic_pointer_cast<const Projection>(sort_b->input_left());
+  EXPECT_EQ(sort->sort_definitions().at(2).column, ColumnID{2});
+  EXPECT_EQ(sort->sort_definitions().at(2).order_by_mode, OrderByMode::AscendingNullsLast);
+
+  const auto projection_b = std::dynamic_pointer_cast<const Projection>(sort->input_left());
   ASSERT_TRUE(projection_b);
 
   const auto get_table = std::dynamic_pointer_cast<const GetTable>(projection_b->input_left());
@@ -402,13 +404,66 @@ TEST_F(LQPTranslatorTest, PredicateNodeBetweenScan) {
   EXPECT_EQ(*table_scan_op->predicate(), *between_inclusive_(a, 42, 1337));
 }
 
+// Tests accessing the original LQP node after translation.
+TEST_F(LQPTranslatorTest, LqpNodeAccess) {
+  auto predicate_node = PredicateNode::make(between_inclusive_(int_float_a, 42, 1337), int_float_node);
+  auto validate_node = ValidateNode::make(predicate_node);
+  auto join_node = JoinNode::make(JoinMode::Inner, equals_(int_float_a, int_float2_a), validate_node, int_float2_node);
+  auto aggregate_node = AggregateNode::make(expression_vector(int_float_a, int_float_b),
+                                            expression_vector(sum_(int_float_a), sum_(int_float_b)), join_node);
+  const auto op = LQPTranslator{}.translate_node(aggregate_node);
+
+  {
+    const auto lqp_node = op->lqp_node;
+    const auto recovered_node = std::dynamic_pointer_cast<const AggregateNode>(lqp_node);
+    EXPECT_EQ(recovered_node, aggregate_node);
+  }
+  {
+    const auto lqp_node = op->input_left()->lqp_node;
+    const auto recovered_node = std::dynamic_pointer_cast<const JoinNode>(lqp_node);
+    EXPECT_EQ(recovered_node, join_node);
+  }
+  {
+    const auto lqp_node_left = op->input_left()->input_left()->lqp_node;
+    const auto recovered_node_left = std::dynamic_pointer_cast<const ValidateNode>(lqp_node_left);
+    EXPECT_EQ(recovered_node_left, validate_node);
+    const auto lqp_node_right = op->input_left()->input_right()->lqp_node;
+    const auto recovered_node_right = std::dynamic_pointer_cast<const StoredTableNode>(lqp_node_right);
+    EXPECT_EQ(recovered_node_right, int_float2_node);
+  }
+  {
+    const auto lqp_node = op->input_left()->input_left()->input_left()->lqp_node;
+    const auto recovered_node = std::dynamic_pointer_cast<const PredicateNode>(lqp_node);
+    EXPECT_EQ(recovered_node, predicate_node);
+  }
+  {
+    const auto lqp_node = op->input_left()->input_left()->input_left()->input_left()->lqp_node;
+    const auto recovered_node = std::dynamic_pointer_cast<const StoredTableNode>(lqp_node);
+    EXPECT_EQ(recovered_node, int_float_node);
+  }
+}
+
+// Check if the LQP that is referenced in the PQP is really cleaned up. This test is intended to check that no cyclic
+// references are accidentally introduced a later point in time.
+TEST_F(LQPTranslatorTest, PqpReferencedLqpNodeCleanUp) {
+  std::weak_ptr<const AbstractLQPNode> lqp_node;
+  {
+    auto pipeline_statement =
+        SQLPipelineBuilder{"SELECT a FROM table_int_float WHERE a < 42"}.create_pipeline_statement();
+    const auto pqp = pipeline_statement.get_physical_plan();
+    lqp_node = pqp->lqp_node;
+    EXPECT_FALSE(lqp_node.expired());
+  }
+  EXPECT_TRUE(lqp_node.expired());
+}
+
 TEST_F(LQPTranslatorTest, PredicateNodeIndexScan) {
   /**
    * Build LQP and translate to PQP
    */
   const auto stored_table_node = StoredTableNode::make("int_float_chunked");
 
-  const auto table = StorageManager::get().get_table("int_float_chunked");
+  const auto table = Hyrise::get().storage_manager.get_table("int_float_chunked");
   std::vector<ColumnID> index_column_ids = {ColumnID{1}};
   std::vector<ChunkID> index_chunk_ids = {ChunkID{0}, ChunkID{2}};
   table->get_chunk(index_chunk_ids[0])->create_index<GroupKeyIndex>(index_column_ids);
@@ -434,6 +489,11 @@ TEST_F(LQPTranslatorTest, PredicateNodeIndexScan) {
   ASSERT_TRUE(table_scan_op);
   EXPECT_EQ(table_scan_op->excluded_chunk_ids, index_chunk_ids);
   EXPECT_EQ(*table_scan_op->predicate(), *equals_(b, 42));
+
+  // Check the setting of LQP nodes for index scans
+  EXPECT_EQ(union_op->lqp_node, predicate_node);
+  EXPECT_EQ(index_scan_op->lqp_node, predicate_node);
+  EXPECT_EQ(table_scan_op->lqp_node, predicate_node);
 }
 
 TEST_F(LQPTranslatorTest, PredicateNodeBinaryIndexScan) {
@@ -442,7 +502,7 @@ TEST_F(LQPTranslatorTest, PredicateNodeBinaryIndexScan) {
    */
   const auto stored_table_node = StoredTableNode::make("int_float_chunked");
 
-  const auto table = StorageManager::get().get_table("int_float_chunked");
+  const auto table = Hyrise::get().storage_manager.get_table("int_float_chunked");
   std::vector<ColumnID> index_column_ids = {ColumnID{1}};
   std::vector<ChunkID> index_chunk_ids = {ChunkID{0}, ChunkID{2}};
   table->get_chunk(index_chunk_ids[0])->create_index<GroupKeyIndex>(index_column_ids);
@@ -479,7 +539,7 @@ TEST_F(LQPTranslatorTest, PredicateNodeIndexScanFailsWhenNotApplicable) {
    */
   const auto stored_table_node = StoredTableNode::make("int_float_chunked");
 
-  const auto table = StorageManager::get().get_table("int_float_chunked");
+  const auto table = Hyrise::get().storage_manager.get_table("int_float_chunked");
   std::vector<ColumnID> index_column_ids = {ColumnID{1}};
   std::vector<ChunkID> index_chunk_ids = {ChunkID{0}, ChunkID{2}};
   table->get_chunk(index_chunk_ids[0])->create_index<GroupKeyIndex>(index_column_ids);
@@ -565,43 +625,13 @@ TEST_F(LQPTranslatorTest, JoinNodeToJoinNestedLoop) {
   EXPECT_EQ(join_op->mode(), JoinMode::Inner);
 }
 
-TEST_F(LQPTranslatorTest, ShowTablesNode) {
-  /**
-   * Build LQP and translate to PQP
-   */
-  const auto show_tables_node = ShowTablesNode::make();
-  const auto op = LQPTranslator{}.translate_node(show_tables_node);
-
-  /**
-   * Check PQP
-   */
-  const auto show_tables_op = std::dynamic_pointer_cast<ShowTables>(op);
-  ASSERT_TRUE(show_tables_op);
-  EXPECT_EQ(show_tables_op->name(), "ShowTables");
-}
-
-TEST_F(LQPTranslatorTest, ShowColumnsNode) {
-  /**
-   * Build LQP and translate to PQP
-   */
-  const auto show_column_node = ShowColumnsNode::make("table_a");
-  const auto op = LQPTranslator{}.translate_node(show_column_node);
-
-  /**
-   * Check PQP
-   */
-  const auto show_columns_op = std::dynamic_pointer_cast<ShowColumns>(op);
-  ASSERT_TRUE(show_columns_op);
-  EXPECT_EQ(show_columns_op->name(), "ShowColumns");
-}
-
 TEST_F(LQPTranslatorTest, AggregateNodeSimple) {
   /**
    * Build LQP and translate to PQP
    */
   // clang-format off
   const auto lqp =
-  AggregateNode::make(expression_vector(int_float_a), expression_vector(sum_(add_(int_float_b, int_float_a))),
+  AggregateNode::make(expression_vector(int_float_a), expression_vector(sum_(add_(int_float_b, int_float_a)), count_star_(int_float_node)),  // NOLINT
     ProjectionNode::make(expression_vector(int_float_b, int_float_a, add_(int_float_b, int_float_a)),
       int_float_node));
   // clang-format on
@@ -612,13 +642,15 @@ TEST_F(LQPTranslatorTest, AggregateNodeSimple) {
    */
   const auto aggregate_op = std::dynamic_pointer_cast<AggregateHash>(op);
   ASSERT_TRUE(aggregate_op);
-  ASSERT_EQ(aggregate_op->aggregates().size(), 1u);
+  ASSERT_EQ(aggregate_op->aggregates().size(), 2u);
   ASSERT_EQ(aggregate_op->groupby_column_ids().size(), 1u);
   EXPECT_EQ(aggregate_op->groupby_column_ids().at(0), ColumnID{1});
 
-  const auto aggregate_definition = aggregate_op->aggregates()[0];
-  EXPECT_EQ(aggregate_definition.column, ColumnID{2});
-  EXPECT_EQ(aggregate_definition.function, AggregateFunction::Sum);
+  const auto sum = aggregate_op->aggregates()[0];
+  EXPECT_EQ(*sum, *sum_(pqp_column_(ColumnID{2}, DataType::Float, false, "b + a")));
+
+  const auto count = aggregate_op->aggregates()[1];
+  EXPECT_EQ(*count, *count_(pqp_column_(INVALID_COLUMN_ID, DataType::Long, false, "*")));
 }
 
 TEST_F(LQPTranslatorTest, JoinAndPredicates) {
@@ -706,7 +738,7 @@ TEST_F(LQPTranslatorTest, DiamondShapeSimple) {
   auto predicate_node_a = PredicateNode::make(equals_(int_float2_a, 3));
   auto predicate_node_b = PredicateNode::make(equals_(int_float2_a, 4));
   auto predicate_node_c = PredicateNode::make(equals_(int_float2_b, 5));
-  auto union_node = UnionNode::make(UnionMode::Positions);
+  auto union_node = UnionNode::make(SetOperationMode::Positions);
   const auto& lqp = union_node;
 
   union_node->set_left_input(predicate_node_a);
@@ -724,6 +756,85 @@ TEST_F(LQPTranslatorTest, DiamondShapeSimple) {
   ASSERT_NE(pqp->input_right()->input_left(), nullptr);
   EXPECT_EQ(pqp->input_left()->input_left(), pqp->input_right()->input_left());
   EXPECT_EQ(pqp->input_left()->input_left()->input_left(), pqp->input_right()->input_left()->input_left());
+}
+
+TEST_F(LQPTranslatorTest, ReusingPQPSelfJoin) {
+  /**
+   * Test that LQP:
+   *
+   *               Projection b, b
+   *                      |
+   *           ______Cross Join______
+   *          /                      \
+   *     Predicate                Predicate
+   *     b = 456.7f               b = 457.7f
+   *         |                        |
+   *     Predicate                Predicate
+   *     a = 12345                a = 12345
+   *         |                        |
+   *    StoredTable              StoredTable
+   *  table_int_float2         table_int_float2
+   *
+   * is translated to PQP:
+   *
+   *           Projection b, b
+   *                  |
+   *       ________Product_______
+   *      /                      \
+   *  TableScan               TableScan
+   *  b = 456.7f              b = 457.7f
+   *     \________TableScan______/
+   *              a = 12345
+   *                  |
+   *              GetTable
+   *           table_int_float2
+   *
+   */
+
+  auto int_float_node_1 = StoredTableNode::make("table_int_float2");
+  auto int_float_a_1 = int_float_node_1->get_column("a");
+  auto int_float_b_1 = int_float_node_1->get_column("b");
+
+  auto int_float_node_2 = StoredTableNode::make("table_int_float2");
+  auto int_float_a_2 = int_float_node_2->get_column("a");
+  auto int_float_b_2 = int_float_node_2->get_column("b");
+
+  // clang-format off
+  const auto lqp =
+  ProjectionNode::make(expression_vector(int_float_b_1, int_float_b_2),
+    JoinNode::make(JoinMode::Cross,
+      PredicateNode::make(equals_(int_float_b_1, 456.7f),
+        PredicateNode::make(equals_(int_float_a_1, 12345),
+          int_float_node_1)),
+      PredicateNode::make(equals_(int_float_b_2, 457.7f),
+        PredicateNode::make(equals_(int_float_a_2, 12345),
+          int_float_node_2))));
+  // clang-format on
+
+  const auto pqp = LQPTranslator{}.translate_node(lqp);
+
+  const auto projection = std::dynamic_pointer_cast<const Projection>(pqp);
+  ASSERT_NE(projection, nullptr);
+
+  const auto product = std::dynamic_pointer_cast<const Product>(projection->input_left());
+  ASSERT_NE(product, nullptr);
+
+  const auto table_scan_b_1 = std::dynamic_pointer_cast<const TableScan>(product->input_left());
+  const auto table_scan_b_2 = std::dynamic_pointer_cast<const TableScan>(product->input_right());
+  ASSERT_NE(table_scan_b_1, nullptr);
+  ASSERT_NE(table_scan_b_2, nullptr);
+  ASSERT_NE(table_scan_b_1, table_scan_b_2);
+
+  const auto table_scan_a_1 = std::dynamic_pointer_cast<const TableScan>(table_scan_b_1->input_left());
+  const auto table_scan_a_2 = std::dynamic_pointer_cast<const TableScan>(table_scan_b_2->input_left());
+  ASSERT_NE(table_scan_a_1, nullptr);
+  ASSERT_NE(table_scan_a_2, nullptr);
+  ASSERT_EQ(table_scan_a_1, table_scan_a_2);
+
+  const auto get_table = std::dynamic_pointer_cast<const GetTable>(table_scan_a_1->input_left());
+  ASSERT_NE(get_table, nullptr);
+
+  ASSERT_EQ(get_table->input_left(), nullptr);
 }
 
 TEST_F(LQPTranslatorTest, ReuseInputExpressions) {
@@ -790,7 +901,9 @@ TEST_F(LQPTranslatorTest, ReuseSubqueryExpression) {
   ASSERT_NE(projection_a, nullptr);
   ASSERT_NE(projection_b, nullptr);
 
-  const auto subquery_in_temporary_column = pqp_column_(ColumnID{1}, DataType::Int, false, "SUBQUERY");
+  // As subquery columns without an explicit alias get the LQP/PQP address as their name, we need to retrieve it first.
+  const auto column_name = subquery_a->as_column_name();
+  const auto subquery_in_temporary_column = pqp_column_(ColumnID{1}, DataType::Int, false, column_name);
 
   EXPECT_EQ(*projection_a->expressions.at(0), *add_(subquery_in_temporary_column, 3));
 }
@@ -855,6 +968,46 @@ TEST_F(LQPTranslatorTest, CreatePreparedPlan) {
 
   const auto prepare = std::dynamic_pointer_cast<CreatePreparedPlan>(pqp);
   EXPECT_EQ(prepare->prepared_plan(), prepared_plan);
+}
+
+TEST_F(LQPTranslatorTest, Export) {
+  // clang-format off
+  const auto lqp =
+  ExportNode::make("a_table", "a_file.tbl", FileType::Auto,
+    ValidateNode::make(int_float_node));
+  // clang-format on
+
+  const auto pqp = LQPTranslator{}.translate_node(lqp);
+  const auto exporter = std::dynamic_pointer_cast<Export>(pqp);
+
+  EXPECT_EQ(exporter->type(), OperatorType::Export);
+  EXPECT_EQ(exporter->input_left()->type(), OperatorType::Validate);
+}
+
+TEST_F(LQPTranslatorTest, Import) {
+  const auto lqp = ImportNode::make("a_table", "a_file.tbl", FileType::Auto);
+
+  const auto pqp = LQPTranslator{}.translate_node(lqp);
+  const auto importer = std::dynamic_pointer_cast<Import>(pqp);
+
+  EXPECT_EQ(importer->type(), OperatorType::Import);
+  EXPECT_EQ(importer->input_left(), nullptr);
+}
+
+TEST_F(LQPTranslatorTest, ChangeMetaTable) {
+  // clang-format off
+  const auto lqp =
+  ChangeMetaTableNode::make("meta_table", MetaTableChangeType::Insert,
+    DummyTableNode::make(),
+    DummyTableNode::make());
+  // clang-format on
+
+  const auto pqp = LQPTranslator{}.translate_node(lqp);
+  const auto change_meta_table = std::dynamic_pointer_cast<ChangeMetaTable>(pqp);
+
+  EXPECT_EQ(change_meta_table->type(), OperatorType::ChangeMetaTable);
+  EXPECT_EQ(change_meta_table->input_left()->type(), OperatorType::TableWrapper);
+  EXPECT_EQ(change_meta_table->input_right()->type(), OperatorType::TableWrapper);
 }
 
 }  // namespace opossum

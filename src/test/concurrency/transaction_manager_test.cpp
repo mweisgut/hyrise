@@ -2,10 +2,9 @@
 #include <vector>
 
 #include "base_test.hpp"
-#include "gtest/gtest.h"
 
 #include "concurrency/transaction_context.hpp"
-#include "concurrency/transaction_manager.hpp"
+#include "hyrise.hpp"
 
 namespace opossum {
 
@@ -14,14 +13,14 @@ class TransactionManagerTest : public BaseTest {
   void SetUp() override {}
 
   static std::unordered_multiset<CommitID>& get_active_snapshot_commit_ids() {
-    return TransactionManager::get()._active_snapshot_commit_ids;
+    return Hyrise::get().transaction_manager._active_snapshot_commit_ids;
   }
 
   static void register_transaction(CommitID snapshot_commit_id) {
-    TransactionManager::get()._register_transaction(snapshot_commit_id);
+    Hyrise::get().transaction_manager._register_transaction(snapshot_commit_id);
   }
   static void deregister_transaction(CommitID snapshot_commit_id) {
-    TransactionManager::get()._deregister_transaction(snapshot_commit_id);
+    Hyrise::get().transaction_manager._deregister_transaction(snapshot_commit_id);
   }
 };
 
@@ -32,14 +31,14 @@ class TransactionManagerTest : public BaseTest {
  * manually for this test.
  */
 TEST_F(TransactionManagerTest, TrackActiveCommitIDs) {
-  auto& manager = TransactionManager::get();
+  auto& manager = Hyrise::get().transaction_manager;
 
   EXPECT_EQ(get_active_snapshot_commit_ids().size(), 0);
   EXPECT_EQ(manager.get_lowest_active_snapshot_commit_id(), std::nullopt);
 
-  const auto t1_context = manager.new_transaction_context();
-  const auto t2_context = manager.new_transaction_context();
-  const auto t3_context = manager.new_transaction_context();
+  const auto t1_context = manager.new_transaction_context(AutoCommit::No);
+  const auto t2_context = manager.new_transaction_context(AutoCommit::No);
+  const auto t3_context = manager.new_transaction_context(AutoCommit::No);
 
   const CommitID t1_snapshot_commit_id = t1_context->snapshot_commit_id();
   const CommitID t2_snapshot_commit_id = t2_context->snapshot_commit_id();

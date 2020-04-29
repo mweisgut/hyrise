@@ -1,8 +1,12 @@
 # Disable some warnings for the third-party subfolder
 add_compile_options(-Wno-unused-function -Wno-deprecated-declarations)
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    add_compile_options(-Wno-format-overflow)
+    add_compile_options(-Wno-format-overflow -Wno-stringop-truncation -Wno-stringop-overflow)
 endif()
+
+# Multiple third-party libraries are not written with unity builds in minds, so we disable
+# unity builds for this folder, even if the user manually activated it.
+set(CMAKE_UNITY_BUILD "OFF")
 
 # Build google benchmark
 add_library(
@@ -12,7 +16,10 @@ add_library(
 
     benchmark_fix/dummy.cc
     benchmark/src/benchmark.cc
+    benchmark/src/benchmark_api_internal.cc
+    benchmark/src/benchmark_name.cc
     benchmark/src/benchmark_register.cc
+    benchmark/src/benchmark_runner.cc
     benchmark/src/colorprint.cc
     benchmark/src/commandlineflags.cc
     benchmark/src/complexity.cc
@@ -40,7 +47,6 @@ target_include_directories(
     benchmark/include
 )
 
-
 # Build sql-parser
 add_library(
     sqlparser
@@ -61,6 +67,7 @@ target_compile_options(
     PRIVATE
     -std=c++1z
     -O3 -Wno-sign-compare
+    -fPIC
 )
 
 add_library(
@@ -73,7 +80,7 @@ add_library(
     cqf/src/cqf32.cpp
 )
 
-target_compile_options(cqf PRIVATE -Wno-format)
+target_compile_options(cqf PRIVATE -Wno-format -fPIC)
 
 target_include_directories(
     cqf
@@ -87,8 +94,10 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 endif()
 
 # Add Libraries with their own build setup
-add_subdirectory(tpch-dbgen)
 add_subdirectory(googletest)
+add_subdirectory(libpqxx)
+add_subdirectory(tpch-dbgen)
+add_subdirectory(nlohmann_json)
 
 # Add PGASUS
 if(${NUMA_FOUND})
@@ -117,32 +126,73 @@ target_include_directories(
     ${LZ4_LIBRARY_DIR}
 )
 
+target_compile_options(lz4 PRIVATE -fPIC)
+
 ## Build zstd
 set(ZSTD_LIBRARY_DIR zstd/lib)
 
 add_library (zstd
-    ${ZSTD_LIBRARY_DIR}/compress/zstd_lazy.c
-    ${ZSTD_LIBRARY_DIR}/compress/zstdmt_compress.c
-    ${ZSTD_LIBRARY_DIR}/compress/zstd_double_fast.c
-    ${ZSTD_LIBRARY_DIR}/compress/zstd_fast.c
-    ${ZSTD_LIBRARY_DIR}/compress/hist.c
-    ${ZSTD_LIBRARY_DIR}/compress/fse_compress.c
-    ${ZSTD_LIBRARY_DIR}/compress/zstd_opt.c
-    ${ZSTD_LIBRARY_DIR}/compress/zstd_compress.c
-    ${ZSTD_LIBRARY_DIR}/compress/huf_compress.c
-    ${ZSTD_LIBRARY_DIR}/compress/zstd_ldm.c
-    ${ZSTD_LIBRARY_DIR}/common/xxhash.c
-    ${ZSTD_LIBRARY_DIR}/common/fse_decompress.c
-    ${ZSTD_LIBRARY_DIR}/common/pool.c
-    ${ZSTD_LIBRARY_DIR}/common/zstd_common.c
-    ${ZSTD_LIBRARY_DIR}/common/error_private.c
+    ${ZSTD_LIBRARY_DIR}/common/bitstream.h
+    ${ZSTD_LIBRARY_DIR}/common/compiler.h
+    ${ZSTD_LIBRARY_DIR}/common/cpu.h
     ${ZSTD_LIBRARY_DIR}/common/debug.c
-    ${ZSTD_LIBRARY_DIR}/common/threading.c
+    ${ZSTD_LIBRARY_DIR}/common/debug.h
     ${ZSTD_LIBRARY_DIR}/common/entropy_common.c
-    ${ZSTD_LIBRARY_DIR}/dictBuilder/zdict.c
-    ${ZSTD_LIBRARY_DIR}/dictBuilder/divsufsort.c
+    ${ZSTD_LIBRARY_DIR}/common/error_private.c
+    ${ZSTD_LIBRARY_DIR}/common/error_private.h
+    ${ZSTD_LIBRARY_DIR}/common/fse.h
+    ${ZSTD_LIBRARY_DIR}/common/fse_decompress.c
+    ${ZSTD_LIBRARY_DIR}/common/huf.h
+    ${ZSTD_LIBRARY_DIR}/common/mem.h
+    ${ZSTD_LIBRARY_DIR}/common/pool.c
+    ${ZSTD_LIBRARY_DIR}/common/pool.h
+    ${ZSTD_LIBRARY_DIR}/common/threading.c
+    ${ZSTD_LIBRARY_DIR}/common/threading.h
+    ${ZSTD_LIBRARY_DIR}/common/xxhash.c
+    ${ZSTD_LIBRARY_DIR}/common/xxhash.h
+    ${ZSTD_LIBRARY_DIR}/common/zstd_common.c
+    ${ZSTD_LIBRARY_DIR}/common/zstd_errors.h
+    ${ZSTD_LIBRARY_DIR}/common/zstd_internal.h
+    ${ZSTD_LIBRARY_DIR}/compress/fse_compress.c
+    ${ZSTD_LIBRARY_DIR}/compress/hist.c
+    ${ZSTD_LIBRARY_DIR}/compress/hist.h
+    ${ZSTD_LIBRARY_DIR}/compress/huf_compress.c
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_compress.c
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_compress_internal.h
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_compress_literals.c
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_compress_literals.h
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_compress_sequences.c
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_compress_sequences.h
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_compress_superblock.c
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_compress_superblock.h
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_cwksp.h
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_double_fast.c
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_double_fast.h
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_fast.c
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_fast.h
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_lazy.c
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_lazy.h
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_ldm.c
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_ldm.h
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_opt.c
+    ${ZSTD_LIBRARY_DIR}/compress/zstd_opt.h
+    ${ZSTD_LIBRARY_DIR}/compress/zstdmt_compress.c
+    ${ZSTD_LIBRARY_DIR}/compress/zstdmt_compress.h
+    ${ZSTD_LIBRARY_DIR}/decompress/huf_decompress.c
+    ${ZSTD_LIBRARY_DIR}/decompress/zstd_ddict.c
+    ${ZSTD_LIBRARY_DIR}/decompress/zstd_ddict.h
+    ${ZSTD_LIBRARY_DIR}/decompress/zstd_decompress.c
+    ${ZSTD_LIBRARY_DIR}/decompress/zstd_decompress_block.c
+    ${ZSTD_LIBRARY_DIR}/decompress/zstd_decompress_block.h
+    ${ZSTD_LIBRARY_DIR}/decompress/zstd_decompress_internal.h
     ${ZSTD_LIBRARY_DIR}/dictBuilder/cover.c
+    ${ZSTD_LIBRARY_DIR}/dictBuilder/cover.h
+    ${ZSTD_LIBRARY_DIR}/dictBuilder/divsufsort.c
+    ${ZSTD_LIBRARY_DIR}/dictBuilder/divsufsort.h
     ${ZSTD_LIBRARY_DIR}/dictBuilder/fastcover.c
+    ${ZSTD_LIBRARY_DIR}/dictBuilder/zdict.c
+    ${ZSTD_LIBRARY_DIR}/dictBuilder/zdict.h
+    ${ZSTD_LIBRARY_DIR}/zstd.h
 )
 
 target_include_directories(
@@ -155,58 +205,7 @@ target_include_directories(
     ${ZSTD_LIBRARY_DIR}/dictBuilder
 )
 
-# TODO(lawben): There is currently a PR open for CMake support in libpqxx.
-# Once that is merged, this should be updated to add_subdirectory(libpqxx)
-add_library(
-    pqxx
-
-    STATIC
-
-    libpqxx/src/array.cxx
-    libpqxx/src/binarystring.cxx
-    libpqxx/src/connection.cxx
-    libpqxx/src/connection_base.cxx
-    libpqxx/src/cursor.cxx
-    libpqxx/src/dbtransaction.cxx
-    libpqxx/src/errorhandler.cxx
-    libpqxx/src/except.cxx
-    libpqxx/src/field.cxx
-    libpqxx/src/largeobject.cxx
-    libpqxx/src/nontransaction.cxx
-    libpqxx/src/notification.cxx
-    libpqxx/src/pipeline.cxx
-    libpqxx/src/prepared_statement.cxx
-    libpqxx/src/result.cxx
-    libpqxx/src/robusttransaction.cxx
-    libpqxx/src/row.cxx
-    libpqxx/src/statement_parameters.cxx
-    libpqxx/src/strconv.cxx
-    libpqxx/src/subtransaction.cxx
-    libpqxx/src/tablereader.cxx
-    libpqxx/src/tablestream.cxx
-    libpqxx/src/tablewriter.cxx
-    libpqxx/src/transaction.cxx
-    libpqxx/src/transaction_base.cxx
-    libpqxx/src/util.cxx
-    libpqxx/src/version.cxx
-)
-
-target_compile_options(
-    pqxx
-    PRIVATE
-    -O3 -std=c++1z
-    -DPQXX_HIDE_EXP_OPTIONAL
-)
-
-target_include_directories(
-    pqxx
-    PUBLIC
-    ${PQ_INCLUDE_DIR}
-    libpqxx/include
-    libpqxx/config/sample-headers/compiler/gcc-7.2
-)
-
-target_link_libraries(pqxx PUBLIC ${PQ_LIBRARY})
+target_compile_options(zstd PRIVATE -fPIC)
 
 add_library(uninitialized_vector INTERFACE)
 target_include_directories(uninitialized_vector INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/uninitialized_vector/)
@@ -218,9 +217,16 @@ else()
     set(JEMALLOC_LIB_PATH ${CMAKE_CURRENT_BINARY_DIR}/jemalloc/lib/libjemalloc.so)
 endif()
 
+if(CMAKE_CURRENT_SOURCE_DIR MATCHES "[ \t\r\n]" OR CMAKE_CURRENT_BINARY_DIR MATCHES "[ \t\r\n]")
+  # It looks like `--prefix=<...>` does not work too well if the prefix has a whitespace. We did not spend too long
+  # trying to get this to work as (1) this is easy to fix by the user, (2) it has only come up once in a long time, and
+  # (3) Makefiles are notoriously bad with spaces: http://savannah.gnu.org/bugs/?712
+  message(FATAL_ERROR "jemalloc cannot be built with whitespaces in the directory path. Please make sure Hyrise is being compiled with a path not containing any whitespaces.")
+endif()
+
 include(ExternalProject)
 if(APPLE)
-    set(MAC_INCLUDES "SDKROOT=\"/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk\" CPATH=\"/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include\"")
+    set(MAC_INCLUDES "SDKROOT=\"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk\" CPATH=\"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include\"")
 else()
     set(MAC_INCLUDES "")
 endif()
@@ -239,20 +245,30 @@ externalproject_add(
     STEP_TARGETS build
     BUILD_BYPRODUCTS ${JEMALLOC_LIB_PATH}
 )
+
+file(GLOB_RECURSE JEMALLOC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/jemalloc/*)
+externalproject_add_step(
+  libjemalloc
+  check_for_changes
+  # Make sure that we rebuild jemalloc when a file changes
+  DEPENDERS configure
+  DEPENDS "${JEMALLOC_FILES}"
+  COMMAND bash -c "(cd ${CMAKE_CURRENT_BINARY_DIR}/jemalloc && make distclean >/dev/null 2>/dev/null) || true"
+)
 add_library(custom_jemalloc SHARED IMPORTED GLOBAL)
 add_dependencies(custom_jemalloc libjemalloc-build)  # ...-build is generated by STEP_TARGETS
 set_target_properties(custom_jemalloc PROPERTIES IMPORTED_LOCATION ${JEMALLOC_LIB_PATH})
 
-# Build TPCDS-KIT
+# build tpcds_dbgen library
 set(TPCDS_KIT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tpcds-kit/tools)
-
-add_executable(dsdgen
+add_library(tpcds_dbgen
+  STATIC
   ${TPCDS_KIT_DIR}/address.c
   ${TPCDS_KIT_DIR}/build_support.c
   ${TPCDS_KIT_DIR}/date.c
   ${TPCDS_KIT_DIR}/decimal.c
   ${TPCDS_KIT_DIR}/dist.c
-  ${TPCDS_KIT_DIR}/driver.c
+  ${TPCDS_KIT_DIR}/modified_driver.c
   ${TPCDS_KIT_DIR}/error_msg.c
   ${TPCDS_KIT_DIR}/genrand.c
   ${TPCDS_KIT_DIR}/join.c
@@ -314,6 +330,7 @@ add_executable(dsdgen
   ${TPCDS_KIT_DIR}/s_web_returns.c
   ${TPCDS_KIT_DIR}/s_web_site.c
   ${TPCDS_KIT_DIR}/s_zip_to_gmt.c
+
   ${TPCDS_KIT_DIR}/w_call_center.c
   ${TPCDS_KIT_DIR}/w_catalog_page.c
   ${TPCDS_KIT_DIR}/w_catalog_returns.c
@@ -339,11 +356,30 @@ add_executable(dsdgen
   ${TPCDS_KIT_DIR}/w_web_sales.c
   ${TPCDS_KIT_DIR}/w_web_site.c)
 
-add_custom_command(TARGET dsdgen PRE_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy ${TPCDS_KIT_DIR}/tpcds.idx.h ${CMAKE_BINARY_DIR}
-        WORKING_DIRECTORY ${TPCDS_KIT_DIR})
-add_custom_command(TARGET dsdgen PRE_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy ${TPCDS_KIT_DIR}/tpcds.idx ${CMAKE_BINARY_DIR}
-        WORKING_DIRECTORY ${TPCDS_KIT_DIR})
-target_compile_definitions(dsdgen PUBLIC -DLINUX)
-target_link_libraries(dsdgen m)
+target_include_directories(tpcds_dbgen
+  PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_compile_definitions(
+  tpcds_dbgen
+  PUBLIC
+  -DLINUX)
+
+target_compile_options(
+  tpcds_dbgen
+  PRIVATE
+
+  -Wno-format
+  -Wno-implicit-int
+  -Wno-incompatible-pointer-types
+  -Wno-unused-result
+)
+
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+target_compile_options(
+  tpcds_dbgen
+  PRIVATE
+
+  -Wno-parentheses-equality
+)
+endif()

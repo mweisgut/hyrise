@@ -8,7 +8,8 @@
 namespace opossum {
 
 template <typename T, typename U>
-FrameOfReferenceSegment<T, U>::FrameOfReferenceSegment(pmr_vector<T> block_minima, pmr_vector<bool> null_values,
+FrameOfReferenceSegment<T, U>::FrameOfReferenceSegment(pmr_vector<T> block_minima,
+                                                       std::optional<pmr_vector<bool>> null_values,
                                                        std::unique_ptr<const BaseCompressedVector> offset_values)
     : BaseEncodedSegment{data_type_from_type<T>()},
       _block_minima{std::move(block_minima)},
@@ -22,7 +23,7 @@ const pmr_vector<T>& FrameOfReferenceSegment<T, U>::block_minima() const {
 }
 
 template <typename T, typename U>
-const pmr_vector<bool>& FrameOfReferenceSegment<T, U>::null_values() const {
+const std::optional<pmr_vector<bool>>& FrameOfReferenceSegment<T, U>::null_values() const {
   return _null_values;
 }
 
@@ -32,7 +33,7 @@ const BaseCompressedVector& FrameOfReferenceSegment<T, U>::offset_values() const
 }
 
 template <typename T, typename U>
-const AllTypeVariant FrameOfReferenceSegment<T, U>::operator[](const ChunkOffset chunk_offset) const {
+AllTypeVariant FrameOfReferenceSegment<T, U>::operator[](const ChunkOffset chunk_offset) const {
   PerformanceWarning("operator[] used");
   DebugAssert(chunk_offset < size(), "Passed chunk offset must be valid.");
 
@@ -44,27 +45,38 @@ const AllTypeVariant FrameOfReferenceSegment<T, U>::operator[](const ChunkOffset
 }
 
 template <typename T, typename U>
-size_t FrameOfReferenceSegment<T, U>::size() const {
-  return _offset_values->size();
+ChunkOffset FrameOfReferenceSegment<T, U>::size() const {
+  return static_cast<ChunkOffset>(_offset_values->size());
 }
 
 template <typename T, typename U>
 std::shared_ptr<BaseSegment> FrameOfReferenceSegment<T, U>::copy_using_allocator(
     const PolymorphicAllocator<size_t>& alloc) const {
-  auto new_block_minima = pmr_vector<T>{_block_minima, alloc};
-  auto new_null_values = pmr_vector<bool>{_null_values, alloc};
+  auto new_block_minima = pmr_vector<T>(_block_minima, alloc);
   auto new_offset_values = _offset_values->copy_using_allocator(alloc);
 
-  return std::allocate_shared<FrameOfReferenceSegment>(alloc, std::move(new_block_minima), std::move(new_null_values),
-                                                       std::move(new_offset_values));
+  std::optional<pmr_vector<bool>> null_values;
+  if (_null_values) {
+    null_values = pmr_vector<bool>(*_null_values, alloc);
+  }
+
+  auto copy = std::make_shared<FrameOfReferenceSegment>(std::move(new_block_minima), std::move(null_values),
+                                                        std::move(new_offset_values));
+  copy->access_counter = access_counter;
+  return copy;
 }
 
 template <typename T, typename U>
-size_t FrameOfReferenceSegment<T, U>::estimate_memory_usage() const {
-  static const auto bits_per_byte = 8u;
+size_t FrameOfReferenceSegment<T, U>::memory_usage(const MemoryUsageCalculationMode) const {
+  // MemoryUsageCalculationMode ignored since full calculation is efficient.
+  size_t segment_size =
+      sizeof(*this) + sizeof(T) * _block_minima.capacity() + _offset_values->data_size() + sizeof(_null_values);
 
-  return sizeof(*this) + sizeof(T) * _block_minima.size() + _offset_values->data_size() +
-         _null_values.size() / bits_per_byte;
+  if (_null_values) {
+    segment_size += _null_values->capacity() / CHAR_BIT;
+  }
+
+  return segment_size;
 }
 
 template <typename T, typename U>
@@ -78,7 +90,7 @@ std::optional<CompressedVectorType> FrameOfReferenceSegment<T, U>::compressed_ve
 }
 
 template class FrameOfReferenceSegment<int32_t>;
-// int64_t disabled for now, as vector compression cannot handle 64 bit values
+// int64_t disabled for now, as vector compression cannot handle 64 bit values - also in reference_segment_iterable.hpp
 // template class FrameOfReferenceSegment<int64_t>;
 
 }  // namespace opossum

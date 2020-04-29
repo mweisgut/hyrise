@@ -14,6 +14,14 @@ bool is_binary_predicate_condition(const PredicateCondition predicate_condition)
          predicate_condition == PredicateCondition::In || predicate_condition == PredicateCondition::NotIn;
 }
 
+bool is_binary_numeric_predicate_condition(const PredicateCondition predicate_condition) {
+  return predicate_condition == PredicateCondition::Equals || predicate_condition == PredicateCondition::NotEquals ||
+         predicate_condition == PredicateCondition::LessThan ||
+         predicate_condition == PredicateCondition::LessThanEquals ||
+         predicate_condition == PredicateCondition::GreaterThan ||
+         predicate_condition == PredicateCondition::GreaterThanEquals;
+}
+
 bool is_between_predicate_condition(PredicateCondition predicate_condition) {
   return predicate_condition == PredicateCondition::BetweenInclusive ||
          predicate_condition == PredicateCondition::BetweenLowerExclusive ||
@@ -58,7 +66,7 @@ PredicateCondition flip_predicate_condition(const PredicateCondition predicate_c
     case PredicateCondition::IsNotNull:
       Fail("Can't flip specified PredicateCondition");
   }
-  Fail("GCC thinks this is reachable");
+  Fail("Invalid enum value");
 }
 
 PredicateCondition inverse_predicate_condition(const PredicateCondition predicate_condition) {
@@ -93,6 +101,38 @@ PredicateCondition inverse_predicate_condition(const PredicateCondition predicat
   }
 }
 
+std::pair<PredicateCondition, PredicateCondition> between_to_conditions(const PredicateCondition predicate_condition) {
+  switch (predicate_condition) {
+    case PredicateCondition::BetweenInclusive:
+      return {PredicateCondition::GreaterThanEquals, PredicateCondition::LessThanEquals};
+    case PredicateCondition::BetweenLowerExclusive:
+      return {PredicateCondition::GreaterThan, PredicateCondition::LessThanEquals};
+    case PredicateCondition::BetweenUpperExclusive:
+      return {PredicateCondition::GreaterThanEquals, PredicateCondition::LessThan};
+    case PredicateCondition::BetweenExclusive:
+      return {PredicateCondition::GreaterThan, PredicateCondition::LessThan};
+    default:
+      Fail("Input was not a between condition");
+  }
+}
+
+PredicateCondition conditions_to_between(const PredicateCondition lower, const PredicateCondition upper) {
+  if (lower == PredicateCondition::GreaterThan) {
+    if (upper == PredicateCondition::LessThan) {
+      return PredicateCondition::BetweenExclusive;
+    } else if (upper == PredicateCondition::LessThanEquals) {
+      return PredicateCondition::BetweenLowerExclusive;
+    }
+  } else if (lower == PredicateCondition::GreaterThanEquals) {
+    if (upper == PredicateCondition::LessThan) {
+      return PredicateCondition::BetweenUpperExclusive;
+    } else if (upper == PredicateCondition::LessThanEquals) {
+      return PredicateCondition::BetweenInclusive;
+    }
+  }
+  Fail("Unexpected PredicateCondition");
+}
+
 const boost::bimap<PredicateCondition, std::string> predicate_condition_to_string =
     make_bimap<PredicateCondition, std::string>({
         {PredicateCondition::Equals, "="},
@@ -114,8 +154,8 @@ const boost::bimap<PredicateCondition, std::string> predicate_condition_to_strin
     });
 
 const boost::bimap<OrderByMode, std::string> order_by_mode_to_string = make_bimap<OrderByMode, std::string>({
-    {OrderByMode::Ascending, "AscendingNullsFirst"},
-    {OrderByMode::Descending, "DescendingNullsFirst"},
+    {OrderByMode::Ascending, "Ascending"},
+    {OrderByMode::Descending, "Descending"},
     {OrderByMode::AscendingNullsLast, "AscendingNullsLast"},
     {OrderByMode::DescendingNullsLast, "DescendingNullsLast"},
 });
@@ -134,8 +174,10 @@ const boost::bimap<JoinMode, std::string> join_mode_to_string = make_bimap<JoinM
 const boost::bimap<TableType, std::string> table_type_to_string =
     make_bimap<TableType, std::string>({{TableType::Data, "Data"}, {TableType::References, "References"}});
 
-const boost::bimap<UnionMode, std::string> union_mode_to_string =
-    make_bimap<UnionMode, std::string>({{UnionMode::Positions, "UnionPositions"}});
+const boost::bimap<SetOperationMode, std::string> set_operation_mode_to_string =
+    make_bimap<SetOperationMode, std::string>({{SetOperationMode::Unique, "Unique"},
+                                               {SetOperationMode::All, "All"},
+                                               {SetOperationMode::Positions, "Positions"}});
 
 std::ostream& operator<<(std::ostream& stream, PredicateCondition predicate_condition) {
   return stream << predicate_condition_to_string.left.at(predicate_condition);
@@ -149,8 +191,8 @@ std::ostream& operator<<(std::ostream& stream, JoinMode join_mode) {
   return stream << join_mode_to_string.left.at(join_mode);
 }
 
-std::ostream& operator<<(std::ostream& stream, UnionMode union_mode) {
-  return stream << union_mode_to_string.left.at(union_mode);
+std::ostream& operator<<(std::ostream& stream, SetOperationMode set_operation_mode) {
+  return stream << set_operation_mode_to_string.left.at(set_operation_mode);
 }
 
 std::ostream& operator<<(std::ostream& stream, TableType table_type) {

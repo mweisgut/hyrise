@@ -116,13 +116,13 @@ class CountingQuotientFilterTypedTest : public BaseTest {
         ++false_positives;
       }
     }
-    const auto false_positive_rate = false_positives / static_cast<float>(runs);
+    const auto false_positive_rate = static_cast<float>(false_positives) / static_cast<float>(runs);
     EXPECT_LT(false_positive_rate, 0.4f);
   }
 };
 
-using Types = ::testing::Types<int32_t, int64_t, pmr_string>;
-TYPED_TEST_CASE(CountingQuotientFilterTypedTest, Types, );  // NOLINT(whitespace/parens)
+using CountingQuitenFilterTestTypes = ::testing::Types<int32_t, int64_t, pmr_string>;
+TYPED_TEST_SUITE(CountingQuotientFilterTypedTest, CountingQuitenFilterTestTypes, );  // NOLINT(whitespace/parens)
 
 TYPED_TEST(CountingQuotientFilterTypedTest, ValueCounts) {
   this->test_value_counts(this->cqf2);
@@ -173,15 +173,17 @@ TYPED_TEST(CountingQuotientFilterTypedTest, HashBits) {
   }
 }
 
+class CountingQuotientFilterTest : public BaseTest {};
+
 // Floating point types are not supported.
-TEST(CountingQuotientFilterTest, FloatingPointTypesUnsupported) {
+TEST_F(CountingQuotientFilterTest, FloatingPointTypesUnsupported) {
   EXPECT_NO_THROW(CountingQuotientFilter<int>(4, 4));
 
   EXPECT_THROW(CountingQuotientFilter<float>(4, 4), std::logic_error);
   EXPECT_THROW(CountingQuotientFilter<double>(4, 4), std::logic_error);
 }
 
-TEST(CountingQuotientFilterTest, QuotientSizes) {
+TEST_F(CountingQuotientFilterTest, QuotientSizes) {
   // Quotient needs to be larger than zero.
   EXPECT_THROW(CountingQuotientFilter<int>(0, 4), std::logic_error);
 

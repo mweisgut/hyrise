@@ -1,14 +1,14 @@
 #pragma once
 
+#include <functional>
+#include <iostream>
+#include <limits>
+
 #include <boost/config.hpp>
 #include <boost/operators.hpp>
 #include <boost/type_traits/has_nothrow_assign.hpp>
 #include <boost/type_traits/has_nothrow_constructor.hpp>
 #include <boost/type_traits/has_nothrow_copy.hpp>
-
-#include <functional>
-#include <iostream>
-#include <limits>
 
 /*
  * This is an extension of boost's BOOST_STRONG_TYPEDEF.
@@ -20,7 +20,7 @@
 
 #define STRONG_TYPEDEF(T, D)                                                                                      \
   namespace opossum {                                                                                             \
-  struct D : boost::totally_ordered1<D, boost::totally_ordered2<D, T>> {                                          \
+  struct D : boost::totally_ordered1<D> {                                                                         \
     typedef T base_type;                                                                                          \
     T t;                                                                                                          \
     constexpr explicit D(const T& t_) BOOST_NOEXCEPT_IF(boost::has_nothrow_copy_constructor<T>::value) : t(t_) {} \
@@ -54,5 +54,8 @@
       return ::opossum::D(numeric_limits<T>::max());                                                              \
     }                                                                                                             \
   };                                                                                                              \
+  } /* NOLINT */                                                                                                  \
+  namespace opossum {                                                                                             \
+  inline std::size_t hash_value(const D& d) { return std::hash<D>()(d); }                                         \
   } /* NOLINT */                                                                                                  \
   static_assert(true, "End call of macro with a semicolon")
