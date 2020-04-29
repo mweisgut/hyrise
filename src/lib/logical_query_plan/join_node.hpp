@@ -10,6 +10,7 @@
 
 #include "abstract_lqp_node.hpp"
 #include "expression/abstract_expression.hpp"
+#include "operators/abstract_join_operator.hpp"
 #include "lqp_column_reference.hpp"
 
 namespace opossum {

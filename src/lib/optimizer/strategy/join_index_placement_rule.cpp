@@ -21,8 +21,6 @@ namespace opossum {
 // generally the conditions for using an index join.
 constexpr float INDEX_JOIN_RATIO_THRESHOLD = 0.01f;
 
-std::string JoinIndexPlacementRule::name() const { return "JoinIndex Placement Rule"; }
-
 void JoinIndexPlacementRule::apply_to(const std::shared_ptr<AbstractLQPNode>& node) const {
   DebugAssert(cost_estimator, "JoinIndexPlacementRule requires cost estimator to be set");
   // The traversal functions require the existence of a root of the LQP, so make sure we have that

@@ -5,6 +5,7 @@
 
 #include "abstract_rule.hpp"
 #include "logical_query_plan/abstract_lqp_node.hpp"
+#include "operators/abstract_join_operator.hpp"
 #include "storage/index/index_statistics.hpp"
 #include "storage/table.hpp"
 #include "types.hpp"
@@ -26,7 +27,6 @@ class StoredTableNode;
 
 class JoinIndexPlacementRule : public AbstractRule {
  public:
-  std::string name() const override;
   void apply_to(const std::shared_ptr<AbstractLQPNode>& node) const override;
 
  protected:
