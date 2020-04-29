@@ -5,6 +5,7 @@
 #include "expression/placeholder_expression.hpp"
 #include "logical_query_plan/abstract_lqp_node.hpp"
 #include "logical_query_plan/lqp_utils.hpp"
+#include "types.hpp"
 
 namespace {
 
@@ -52,12 +53,21 @@ void lqp_bind_placeholders_impl(const std::shared_ptr<AbstractLQPNode>& lqp,
 
 namespace opossum {
 
-PreparedPlan::PreparedPlan(const std::shared_ptr<AbstractLQPNode>& lqp, const std::vector<ParameterID>& parameter_ids)
-    : lqp(lqp), parameter_ids(parameter_ids) {}
+PreparedPlan::PreparedPlan(const std::shared_ptr<AbstractLQPNode>& init_lqp,
+                           const std::vector<ParameterID>& init_parameter_ids)
+    : lqp(init_lqp), parameter_ids(init_parameter_ids) {}
 
 std::shared_ptr<PreparedPlan> PreparedPlan::deep_copy() const {
   const auto lqp_copy = lqp->deep_copy();
   return std::make_shared<PreparedPlan>(lqp_copy, parameter_ids);
+}
+
+size_t PreparedPlan::hash() const {
+  auto hash = lqp->hash();
+  for (const auto& parameter_id : parameter_ids) {
+    boost::hash_combine(hash, static_cast<size_t>(parameter_id));
+  }
+  return hash;
 }
 
 std::shared_ptr<AbstractLQPNode> PreparedPlan::instantiate(
@@ -68,8 +78,7 @@ std::shared_ptr<AbstractLQPNode> PreparedPlan::instantiate(
 
   auto parameters_by_id = std::unordered_map<ParameterID, std::shared_ptr<AbstractExpression>>{};
   for (auto parameter_idx = size_t{0}; parameter_idx < parameters.size(); ++parameter_idx) {
-    const auto parameter_id = parameter_ids[parameter_idx];
-    parameters_by_id.emplace(parameter_id, parameters[parameter_idx]);
+    parameters_by_id.emplace(parameter_ids[parameter_idx], parameters[parameter_idx]);
   }
 
   auto instantiated_lqp = lqp->deep_copy();

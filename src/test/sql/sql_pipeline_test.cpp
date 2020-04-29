@@ -1,39 +1,22 @@
 #include <memory>
 #include <string>
 #include <utility>
+
 #include "base_test.hpp"
 
 #include "SQLParser.h"
 #include "SQLParserResult.h"
-#include "gtest/gtest.h"
-#include "logical_query_plan/join_node.hpp"
 
+#include "hyrise.hpp"
+#include "logical_query_plan/join_node.hpp"
 #include "operators/abstract_join_operator.hpp"
 #include "operators/print.hpp"
 #include "operators/validate.hpp"
-#include "scheduler/current_scheduler.hpp"
 #include "scheduler/job_task.hpp"
 #include "scheduler/node_queue_scheduler.hpp"
-#include "scheduler/topology.hpp"
 #include "sql/sql_pipeline.hpp"
 #include "sql/sql_pipeline_builder.hpp"
 #include "sql/sql_plan_cache.hpp"
-#include "storage/storage_manager.hpp"
-
-namespace {
-// This function is a slightly hacky way to check whether an LQP was optimized. This relies on JoinOrderingRule and
-// could break if something is changed within the optimizer.
-// It assumes that for the query: SELECT * from a, b WHERE a.a = b.a will be translated to a Cross Join with a filter
-// predicate and then optimized to a Join.
-std::function<bool(const std::shared_ptr<opossum::AbstractLQPNode>&)> contains_cross =
-    [](const std::shared_ptr<opossum::AbstractLQPNode>& node) {
-      if (node->type != opossum::LQPNodeType::Join) return false;
-      if (auto join_node = std::dynamic_pointer_cast<opossum::JoinNode>(node)) {
-        return join_node->join_mode == opossum::JoinMode::Cross;
-      }
-      return false;
-    };
-}  // namespace
 
 namespace opossum {
 
@@ -45,23 +28,23 @@ class SQLPipelineTest : public BaseTest {
     _table_b = load_table("resources/test_data/tbl/int_float2.tbl", 2);
 
     TableColumnDefinitions column_definitions;
-    column_definitions.emplace_back("a", DataType::Int);
-    column_definitions.emplace_back("b", DataType::Float);
-    column_definitions.emplace_back("bb", DataType::Float);
+    column_definitions.emplace_back("a", DataType::Int, false);
+    column_definitions.emplace_back("b", DataType::Float, false);
+    column_definitions.emplace_back("bb", DataType::Float, false);
     _join_result = std::make_shared<Table>(column_definitions, TableType::Data);
     _join_result->append({12345, 458.7f, 456.7f});
     _join_result->append({12345, 458.7f, 457.7f});
   }
 
   void SetUp() override {
-    StorageManager::get().reset();
+    Hyrise::reset();
 
     // We reload table_a every time since it is modified during the test case.
     _table_a = load_table("resources/test_data/tbl/int_float.tbl", 2);
-    StorageManager::get().add_table("table_a", _table_a);
+    Hyrise::get().storage_manager.add_table("table_a", _table_a);
 
-    StorageManager::get().add_table("table_a_multi", _table_a_multi);
-    StorageManager::get().add_table("table_b", _table_b);
+    Hyrise::get().storage_manager.add_table("table_a_multi", _table_a_multi);
+    Hyrise::get().storage_manager.add_table("table_b", _table_b);
 
     _pqp_cache = std::make_shared<SQLPhysicalPlanCache>();
   }
@@ -103,7 +86,7 @@ TEST_F(SQLPipelineTest, SimpleCreationWithoutMVCC) {
 }
 
 TEST_F(SQLPipelineTest, SimpleCreationWithCustomTransactionContext) {
-  auto context = TransactionManager::get().new_transaction_context();
+  auto context = Hyrise::get().transaction_manager.new_transaction_context(AutoCommit::No);
   auto sql_pipeline = SQLPipelineBuilder{_select_query_a}.with_transaction_context(context).create_pipeline();
 
   EXPECT_EQ(sql_pipeline.transaction_context().get(), context.get());
@@ -125,7 +108,7 @@ TEST_F(SQLPipelineTest, SimpleCreationWithoutMVCCMulti) {
 }
 
 TEST_F(SQLPipelineTest, SimpleCreationWithCustomTransactionContextMulti) {
-  auto context = TransactionManager::get().new_transaction_context();
+  auto context = Hyrise::get().transaction_manager.new_transaction_context(AutoCommit::No);
   auto sql_pipeline = SQLPipelineBuilder{_multi_statement_query}.with_transaction_context(context).create_pipeline();
 
   EXPECT_EQ(sql_pipeline.transaction_context().get(), context.get());
@@ -139,7 +122,7 @@ TEST_F(SQLPipelineTest, SimpleCreationInvalid) {
 TEST_F(SQLPipelineTest, ConstructorCombinations) {
   // Simple sanity test for all other constructor options
   const auto optimizer = Optimizer::create_default_optimizer();
-  auto transaction_context = TransactionManager::get().new_transaction_context();
+  auto transaction_context = Hyrise::get().transaction_manager.new_transaction_context(AutoCommit::No);
 
   // No transaction context
   EXPECT_NO_THROW(
@@ -396,8 +379,8 @@ TEST_F(SQLPipelineTest, GetResultTableExecutionRequired) {
 TEST_F(SQLPipelineTest, GetResultTableWithScheduler) {
   auto sql_pipeline = SQLPipelineBuilder{_join_query}.create_pipeline();
 
-  Topology::use_fake_numa_topology(8, 4);
-  CurrentScheduler::set(std::make_shared<NodeQueueScheduler>());
+  Hyrise::get().topology.use_fake_numa_topology(8, 4);
+  Hyrise::get().set_scheduler(std::make_shared<NodeQueueScheduler>());
   const auto& [pipeline_status, table] = sql_pipeline.get_result_table();
   EXPECT_EQ(pipeline_status, SQLPipelineStatus::Success);
 
@@ -407,26 +390,13 @@ TEST_F(SQLPipelineTest, GetResultTableWithScheduler) {
 TEST_F(SQLPipelineTest, CleanupWithScheduler) {
   auto sql_pipeline = SQLPipelineBuilder{_join_query}.create_pipeline();
 
-  Topology::use_fake_numa_topology(8, 4);
-  CurrentScheduler::set(std::make_shared<NodeQueueScheduler>());
+  Hyrise::get().topology.use_fake_numa_topology(8, 4);
+  Hyrise::get().set_scheduler(std::make_shared<NodeQueueScheduler>());
   sql_pipeline.get_result_table();
 
   for (auto task_it = sql_pipeline.get_tasks()[0].cbegin(); task_it != sql_pipeline.get_tasks()[0].cend() - 1;
        ++task_it) {
     EXPECT_EQ(std::dynamic_pointer_cast<OperatorTask>(*task_it)->get_operator()->get_output(), nullptr);
-  }
-}
-
-TEST_F(SQLPipelineTest, DisabledCleanupWithScheduler) {
-  auto sql_pipeline = SQLPipelineBuilder{_join_query}.dont_cleanup_temporaries().create_pipeline();
-
-  Topology::use_fake_numa_topology(8, 4);
-  CurrentScheduler::set(std::make_shared<NodeQueueScheduler>());
-  sql_pipeline.get_result_table();
-
-  for (auto task_it = sql_pipeline.get_tasks()[0].cbegin(); task_it != sql_pipeline.get_tasks()[0].cend() - 1;
-       ++task_it) {
-    EXPECT_NE(std::dynamic_pointer_cast<OperatorTask>(*task_it)->get_operator()->get_output(), nullptr);
   }
 }
 
@@ -453,48 +423,42 @@ TEST_F(SQLPipelineTest, GetResultTableNoOutput) {
 
 TEST_F(SQLPipelineTest, UpdateWithTransactionFailure) {
   // Mark a row as modified by a different transaction
-  auto first_chunk_mvcc_data_lock = _table_a->get_chunk(ChunkID{0})->get_scoped_mvcc_data_lock();
-  auto& first_chunk_tids = first_chunk_mvcc_data_lock->tids;
-  auto& first_chunk_end_cids = first_chunk_mvcc_data_lock->end_cids;
+  auto first_chunk_mvcc_data = _table_a->get_chunk(ChunkID{0})->mvcc_data();
 
-  first_chunk_tids[1] = TransactionID{17};
+  first_chunk_mvcc_data->set_tid(1, TransactionID{17});
 
   const auto sql =
       "UPDATE table_a SET a = 1 WHERE a = 12345; UPDATE table_a SET a = 1 WHERE a = 123; "
       "UPDATE table_a SET a = 1 WHERE a = 1234";
-  auto transaction_context = TransactionManager::get().new_transaction_context();
+  auto transaction_context = Hyrise::get().transaction_manager.new_transaction_context(AutoCommit::No);
   auto sql_pipeline = SQLPipelineBuilder{sql}.with_transaction_context(transaction_context).create_pipeline();
 
   const auto [pipeline_status, tables] = sql_pipeline.get_result_tables();
-  EXPECT_EQ(pipeline_status, SQLPipelineStatus::RolledBack);
+  EXPECT_EQ(pipeline_status, SQLPipelineStatus::Failure);
   EXPECT_EQ(tables.size(), 0);
   EXPECT_EQ(sql_pipeline.failed_pipeline_statement()->get_sql_string(), "UPDATE table_a SET a = 1 WHERE a = 123;");
   EXPECT_TRUE(transaction_context->aborted());
 
   // No row should have been touched
-  EXPECT_EQ(first_chunk_tids[0], TransactionID{0});
-  EXPECT_EQ(first_chunk_end_cids[0], MvccData::MAX_COMMIT_ID);
+  EXPECT_EQ(first_chunk_mvcc_data->get_tid(0), TransactionID{0});
+  EXPECT_EQ(first_chunk_mvcc_data->get_end_cid(0), MvccData::MAX_COMMIT_ID);
 
-  EXPECT_EQ(first_chunk_tids[1], TransactionID{17});
-  EXPECT_EQ(first_chunk_end_cids[1], MvccData::MAX_COMMIT_ID);
+  EXPECT_EQ(first_chunk_mvcc_data->get_tid(1), TransactionID{17});
+  EXPECT_EQ(first_chunk_mvcc_data->get_end_cid(1), MvccData::MAX_COMMIT_ID);
 
-  auto second_chunk_mvcc_data_lock = _table_a->get_chunk(ChunkID{1})->get_scoped_mvcc_data_lock();
-  auto& second_chunk_tids = second_chunk_mvcc_data_lock->tids;
-  auto& second_chunk_end_cids = second_chunk_mvcc_data_lock->end_cids;
+  auto second_chunk_mvcc_data = _table_a->get_chunk(ChunkID{1})->mvcc_data();
 
-  EXPECT_EQ(second_chunk_tids[0], TransactionID{0});
-  EXPECT_EQ(second_chunk_end_cids[0], MvccData::MAX_COMMIT_ID);
+  EXPECT_EQ(second_chunk_mvcc_data->get_tid(0), TransactionID{0});
+  EXPECT_EQ(second_chunk_mvcc_data->get_end_cid(0), MvccData::MAX_COMMIT_ID);
 }
 
 TEST_F(SQLPipelineTest, UpdateWithTransactionFailureAutoCommit) {
   // Similar to UpdateWithTransactionFailure, but without explicit transaction context
 
   // Mark a row as modified by a different transaction
-  auto first_chunk_mvcc_data_lock = _table_a->get_chunk(ChunkID{0})->get_scoped_mvcc_data_lock();
-  auto& first_chunk_tids = first_chunk_mvcc_data_lock->tids;
-  auto& first_chunk_end_cids = first_chunk_mvcc_data_lock->end_cids;
+  auto first_chunk_mvcc_data = _table_a->get_chunk(ChunkID{0})->mvcc_data();
 
-  first_chunk_tids[1] = TransactionID{17};
+  first_chunk_mvcc_data->set_tid(1, TransactionID{17});
 
   const auto sql =
       "UPDATE table_a SET a = 1 WHERE a = 12345; UPDATE table_a SET a = 1 WHERE a = 123; "
@@ -502,25 +466,23 @@ TEST_F(SQLPipelineTest, UpdateWithTransactionFailureAutoCommit) {
   auto sql_pipeline = SQLPipelineBuilder{sql}.create_pipeline();
 
   const auto& [pipeline_status, tables] = sql_pipeline.get_result_tables();
-  EXPECT_EQ(pipeline_status, SQLPipelineStatus::RolledBack);
+  EXPECT_EQ(pipeline_status, SQLPipelineStatus::Failure);
   EXPECT_EQ(tables.size(), 1);
   EXPECT_EQ(sql_pipeline.failed_pipeline_statement()->get_sql_string(), "UPDATE table_a SET a = 1 WHERE a = 123;");
 
   // This time, the first row should have been updated before the second statement failed
-  EXPECT_EQ(first_chunk_tids[0], TransactionID{1});
-  EXPECT_EQ(first_chunk_end_cids[0], CommitID{2});  // initial commit ID + 1
+  EXPECT_EQ(first_chunk_mvcc_data->get_tid(0), TransactionID{1});
+  EXPECT_EQ(first_chunk_mvcc_data->get_end_cid(0), CommitID{2});  // initial commit ID + 1
 
   // This row was being modified by a different transaction, so it should not have been touched
-  EXPECT_EQ(first_chunk_tids[1], TransactionID{17});
-  EXPECT_EQ(first_chunk_end_cids[1], MvccData::MAX_COMMIT_ID);
+  EXPECT_EQ(first_chunk_mvcc_data->get_tid(1), TransactionID{17});
+  EXPECT_EQ(first_chunk_mvcc_data->get_end_cid(1), MvccData::MAX_COMMIT_ID);
 
   // We had to abort before we got to the third statement
-  auto second_chunk_mvcc_data_lock = _table_a->get_chunk(ChunkID{1})->get_scoped_mvcc_data_lock();
-  auto& second_chunk_tids = second_chunk_mvcc_data_lock->tids;
-  auto& second_chunk_end_cids = second_chunk_mvcc_data_lock->end_cids;
+  auto second_chunk_mvcc_data = _table_a->get_chunk(ChunkID{1})->mvcc_data();
 
-  EXPECT_EQ(second_chunk_tids[0], TransactionID{0});
-  EXPECT_EQ(second_chunk_end_cids[0], MvccData::MAX_COMMIT_ID);
+  EXPECT_EQ(second_chunk_mvcc_data->get_tid(0), TransactionID{0});
+  EXPECT_EQ(second_chunk_mvcc_data->get_end_cid(0), MvccData::MAX_COMMIT_ID);
 }
 
 TEST_F(SQLPipelineTest, GetTimes) {
@@ -652,8 +614,8 @@ TEST_F(SQLPipelineTest, DefaultPlanCaches) {
   EXPECT_FALSE(sql_pipeline_statement_0.lqp_cache);
 
   // Default caches
-  SQLPipelineBuilder::default_pqp_cache = default_pqp_cache;
-  SQLPipelineBuilder::default_lqp_cache = default_lqp_cache;
+  Hyrise::get().default_pqp_cache = default_pqp_cache;
+  Hyrise::get().default_lqp_cache = default_lqp_cache;
   const auto sql_pipeline_1 = SQLPipelineBuilder{"SELECT * FROM table_a"}.create_pipeline();
   EXPECT_EQ(sql_pipeline_1.pqp_cache, default_pqp_cache);
   EXPECT_EQ(sql_pipeline_1.lqp_cache, default_lqp_cache);

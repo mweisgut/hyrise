@@ -67,10 +67,10 @@ const char* const tpch_query_1 =
  *            AND n_regionkey = r_regionkey
  *            AND r_name = '[REGION]'
  *        )
- * ORDER BY s_acctbal DESC, n_name, s_name, p_partkey;
+ * ORDER BY s_acctbal DESC, n_name, s_name, p_partkey
+ * LIMIT 100;
  *
- * Changes:
- *  1. Random values are hardcoded
+ * The limit is not part of the printed query but hidden in the specification text.
  */
 const char* const tpch_query_2 =
     R"(SELECT s_acctbal, s_name, n_name, p_partkey, p_mfgr, s_address, s_phone, s_comment
@@ -92,9 +92,9 @@ const char* const tpch_query_2 =
  * AND o_orderdate < date '[DATE]' AND l_shipdate > date '[DATE]'
  * GROUP BY l_orderkey, o_orderdate, o_shippriority
  * ORDER BY revenue DESC, o_orderdate;
+ * LIMIT 10
  *
- * Changes:
- *  1. Random values are hardcoded
+ * The limit is not part of the printed query but hidden in the specification text.
  */
 const char* const tpch_query_3 =
     R"(SELECT l_orderkey, SUM(l_extendedprice*(1-l_discount)) as revenue, o_orderdate, o_shippriority
@@ -102,7 +102,8 @@ const char* const tpch_query_3 =
       WHERE c_mktsegment = ? AND c_custkey = o_custkey AND l_orderkey = o_orderkey
       AND o_orderdate < ? AND l_shipdate > ?
       GROUP BY l_orderkey, o_orderdate, o_shippriority
-      ORDER BY revenue DESC, o_orderdate;)";
+      ORDER BY revenue DESC, o_orderdate
+      LIMIT 10;)";
 
 /**
  * TPC-H 4
@@ -127,8 +128,7 @@ const char* const tpch_query_3 =
  * ORDER BY o_orderpriority;
  *
  * Changes:
- *  1. Random values are hardcoded
- *  2. dates are not supported
+ *  1. dates are not supported
  *    a. use strings as data type for now
  *    b. pre-calculate date operation
  */
@@ -169,8 +169,7 @@ const char* const tpch_query_4 =
  *      revenue DESC;
  *
  * Changes:
- *  1. Random values are hardcoded
- *  2. dates are not supported
+ *  1. dates are not supported
  *    a. use strings as data type for now
  *    b. pre-calculate date operation
  */
@@ -236,11 +235,10 @@ const char* const tpch_query_6 =
  * ORDER BY supp_nation, cust_nation, l_year;
  *
  * Changes:
- *  1. Random values are hardcoded
- *  2. dates are not supported
+ *  1. dates are not supported
  *    a. use strings as data type for now
  *    b. pre-calculate date operation
- *  3. Extract is not supported
+ *  2. Extract is not supported
  *    a. Use SUBSTR instead (because our date columns are strings AND SQLite doesn't support EXTRACT)
  */
 const char* const tpch_query_7 =
@@ -253,7 +251,7 @@ const char* const tpch_query_7 =
           (SELECT
               n1.n_name as supp_nation,
               n2.n_name as cust_nation,
-              SUBSTR(l_shipdate, 0, 4) as l_year,
+              SUBSTR(l_shipdate, 1, 4) as l_year,
               l_extendedprice * (1 - l_discount) as volume
           FROM
               supplier,
@@ -319,15 +317,14 @@ const char* const tpch_query_7 =
  * ORDER BY o_year;
  *
  * Changes:
- *  1. Random values are hardcoded
- *  2. dates are not supported
+ *  1. dates are not supported
  *    a. use strings as data type for now
- *  3. Extract is not supported
+ *  2. Extract is not supported
  *    a. Use SUBSTR instead (because our date columns are strings AND SQLite doesn't support EXTRACT)
  */
 const char* const tpch_query_8 =
     R"(SELECT o_year, SUM(case when nation = ? then volume else 0 end) / SUM(volume) as mkt_share
-     FROM (SELECT SUBSTR(o_orderdate, 0, 4) as o_year, l_extendedprice * (1-l_discount) as volume,
+     FROM (SELECT SUBSTR(o_orderdate, 1, 4) as o_year, l_extendedprice * (1-l_discount) as volume,
      n2.n_name as nation FROM part, supplier, lineitem, orders, customer, nation n1, nation n2, region
      WHERE p_partkey = l_partkey AND s_suppkey = l_suppkey AND l_orderkey = o_orderkey AND
      o_custkey = c_custkey AND c_nationkey = n1.n_nationkey AND n1.n_regionkey = r_regionkey AND
@@ -362,12 +359,11 @@ const char* const tpch_query_8 =
  * ORDER BY nation, o_year DESC;
  *
  * Changes:
- *  1. Random values are hardcoded
- *  2. Extract is not supported
+ *  1. Extract is not supported
  *    a. Use SUBSTR instead
  */
 const char* const tpch_query_9 =
-    R"(SELECT nation, o_year, SUM(amount) as sum_profit FROM (SELECT n_name as nation, SUBSTR(o_orderdate, 0, 4) as o_year,
+    R"(SELECT nation, o_year, SUM(amount) as sum_profit FROM (SELECT n_name as nation, SUBSTR(o_orderdate, 1, 4) as o_year,
       l_extendedprice * (1 - l_discount) - ps_supplycost * l_quantity as amount
       FROM part, supplier, lineitem, partsupp, orders, nation WHERE s_suppkey = l_suppkey
       AND ps_suppkey = l_suppkey AND ps_partkey = l_partkey AND p_partkey = l_partkey AND o_orderkey = l_orderkey
@@ -409,11 +405,13 @@ const char* const tpch_query_9 =
  *      c_address,
  *      c_comment
  * ORDER BY
- *      revenue DESC;
+ *      revenue DESC
+ * LIMIT 20;
+ *
+ * The limit is not part of the printed query but hidden in the specification text.
  *
  * Changes:
- *  1. Random values are hardcoded
- *  2. dates are not supported
+ *  1. dates are not supported
  *    a. use strings as data type for now
  *    b. pre-calculate date operation
  */
@@ -424,7 +422,7 @@ const char* const tpch_query_10 =
       WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate >= ?
       AND o_orderdate < ? AND l_returnflag = 'R' AND c_nationkey = n_nationkey
       GROUP BY c_custkey, c_name, c_acctbal, c_phone, n_name, c_address, c_comment
-      ORDER BY revenue DESC;)";
+      ORDER BY revenue DESC LIMIT 20;)";
 
 /**
  * TPC-H 11
@@ -449,10 +447,6 @@ const char* const tpch_query_10 =
  *        AND n_name = '[NATION]'
  *    )
  * ORDER BY value DESC;
- *
- * Changes:
- *  1. Random values are hardcoded
-
  */
 const char* const tpch_query_11 =
     R"(SELECT ps_partkey, SUM(ps_supplycost * ps_availqty) as value FROM partsupp, supplier, nation
@@ -490,8 +484,7 @@ const char* const tpch_query_11 =
  * ORDER BY l_shipmode;
  *
  * Changes:
- *  1. Random values are hardcoded
- *  2. dates are not supported
+ *  1. dates are not supported
  *    a. use strings as data type for now
  *    b. pre-calculate date operation
  */
@@ -521,8 +514,7 @@ const char* const tpch_query_12 =
  * ORDER BY custdist DESC, c_count DESC;
  *
  * Changes:
- *  1. Random values are hardcoded
- *  2. Subselect column aliases are moved into subselect because SQLite does not support aliases at the original position
+ *  1. Subselect column aliases are moved into subselect because SQLite does not support aliases at the original position
  */
 
 const char* const tpch_query_13 =
@@ -547,8 +539,7 @@ const char* const tpch_query_13 =
  *    AND l_shipdate < date '[DATE]' + interval '1' month;
  *
  * Changes:
- *  1. Random values are hardcoded
- *  2. dates are not supported
+ *  1. dates are not supported
  *    a. use strings as data type for now
  *    b. pre-calculate date operation
  */
@@ -583,8 +574,7 @@ const char* const tpch_query_14 =
  * drop view revenue[STREAM_ID];
  *
  * Changes:
- *  1. Random values are hardcoded
- *  2. "revenue[STREAM_ID]" renamed to "revenue"
+ *  1. "revenue[STREAM_ID]" renamed to "revenue_view"
  *  2. dates are not supported
  *    a. use strings as data type for now
  *    b. pre-calculate date operation
@@ -619,10 +609,6 @@ const char* const tpch_query_15 =
  *    )
  * GROUP BY p_brand, p_type, p_size
  * ORDER BY supplier_cnt DESC, p_brand, p_type, p_size;
- *
- * Changes:
- *  1. Random values are hardcoded
-
  */
 const char* const tpch_query_16 =
     R"(SELECT p_brand, p_type, p_size, count(distinct ps_suppkey) as supplier_cnt
@@ -647,10 +633,6 @@ const char* const tpch_query_16 =
  *        FROM lineitem
  *        WHERE l_partkey = p_partkey
  *    );
- *
- * Changes:
- *  1. Random values are hardcoded
-
  */
 const char* const tpch_query_17 =
     R"(SELECT SUM(l_extendedprice) / 7.0 as avg_yearly FROM lineitem, part WHERE p_partkey = l_partkey
@@ -674,17 +656,17 @@ const char* const tpch_query_17 =
  *    AND c_custkey = o_custkey
  *    AND o_orderkey = l_orderkey
  * GROUP BY c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice
- * ORDER BY o_totalprice DESC, o_orderdate;
+ * ORDER BY o_totalprice DESC, o_orderdate
+ * LIMIT 100;
  *
- * Changes:
- *  1. Random values are hardcoded
-
+ * The limit is not part of the printed query but hidden in the specification text.
  */
 const char* const tpch_query_18 =
     R"(SELECT c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice, SUM(l_quantity)
       FROM customer, orders, lineitem WHERE o_orderkey in (SELECT l_orderkey FROM lineitem
       GROUP BY l_orderkey having SUM(l_quantity) > ?) AND c_custkey = o_custkey AND o_orderkey = l_orderkey
-      GROUP BY c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice ORDER BY o_totalprice DESC, o_orderdate;)";
+      GROUP BY c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice ORDER BY o_totalprice DESC, o_orderdate
+      LIMIT 100;)";
 
 /**
  * TPC-H 19
@@ -721,9 +703,6 @@ const char* const tpch_query_18 =
  *        AND l_shipmode in ('AIR', 'AIR REG')
  *        AND l_shipinstruct = 'DELIVER IN PERSON'
  *    );
- *
- * Changes:
- *  1. Random values are hardcoded
  */
 const char* const tpch_query_19 =
 
@@ -767,8 +746,7 @@ const char* const tpch_query_19 =
  * ORDER BY s_name;
  *
  * Changes:
- *  1. Random values are hardcoded
- *  2. dates are not supported
+ *  1. dates are not supported
  *    a. use strings as data type for now
  *    b. pre-calculate date operation
  */
@@ -808,11 +786,13 @@ const char* const tpch_query_20 =
  *    AND s_nationkey = n_nationkey
  *    AND n_name = '[NATION]'
  * GROUP BY s_name
- * ORDER BY numwait DESC, s_name;
+ * ORDER BY numwait DESC, s_name
+ * LIMIT 100;
+ *
+ * The limit is not part of the printed query but hidden in the specification text.
  *
  * Changes:
- *  1. Random values are hardcoded
- *  2. dates are not supported
+ *  1. dates are not supported
  *    a. use strings as data type for now
  *    b. pre-calculate date operation
 
@@ -823,7 +803,7 @@ const char* const tpch_query_21 =
       (SELECT * FROM lineitem l2 WHERE l2.l_orderkey = l1.l_orderkey AND l2.l_suppkey <> l1.l_suppkey) AND not exists
       (SELECT * FROM lineitem l3 WHERE l3.l_orderkey = l1.l_orderkey AND l3.l_suppkey <> l1.l_suppkey AND
       l3.l_receiptdate > l3.l_commitdate ) AND s_nationkey = n_nationkey AND n_name = ? GROUP BY s_name
-      ORDER BY numwait DESC, s_name;)";
+      ORDER BY numwait DESC, s_name LIMIT 100;)";
 
 /**
  * TPC-H 22

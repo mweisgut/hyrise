@@ -17,7 +17,10 @@ Limit::Limit(const std::shared_ptr<const AbstractOperator>& in,
              const std::shared_ptr<AbstractExpression>& row_count_expression)
     : AbstractReadOnlyOperator(OperatorType::Limit, in), _row_count_expression(row_count_expression) {}
 
-const std::string Limit::name() const { return "Limit"; }
+const std::string& Limit::name() const {
+  static const auto name = std::string{"Limit"};
+  return name;
+}
 
 std::shared_ptr<AbstractExpression> Limit::row_count_expression() const { return _row_count_expression; }
 
@@ -59,15 +62,18 @@ std::shared_ptr<const Table> Limit::_on_execute() {
   auto output_chunks = std::vector<std::shared_ptr<Chunk>>{};
 
   ChunkID chunk_id{0};
-  for (size_t i = 0; i < num_rows && chunk_id < input_table->chunk_count(); chunk_id++) {
+  const auto chunk_count = input_table->chunk_count();
+  for (size_t i = 0; i < num_rows && chunk_id < chunk_count; chunk_id++) {
     const auto input_chunk = input_table->get_chunk(chunk_id);
+    Assert(input_chunk, "Physically deleted chunk should not reach this point, see get_chunk / #1686.");
+
     Segments output_segments;
 
     size_t output_chunk_row_count = std::min<size_t>(input_chunk->size(), num_rows - i);
 
     for (ColumnID column_id{0}; column_id < input_table->column_count(); column_id++) {
       const auto input_base_segment = input_chunk->get_segment(column_id);
-      auto output_pos_list = std::make_shared<PosList>(output_chunk_row_count);
+      auto output_pos_list = std::make_shared<RowIDPosList>(output_chunk_row_count);
       std::shared_ptr<const Table> referenced_table;
       ColumnID output_column_id = column_id;
 
@@ -79,7 +85,8 @@ std::shared_ptr<const Table> Limit::_on_execute() {
         std::copy(begin, begin + output_chunk_row_count, output_pos_list->begin());
       } else {
         referenced_table = input_table;
-        for (ChunkOffset chunk_offset = 0; chunk_offset < output_chunk_row_count; chunk_offset++) {
+        for (ChunkOffset chunk_offset = 0; chunk_offset < static_cast<ChunkOffset>(output_chunk_row_count);
+             chunk_offset++) {
           (*output_pos_list)[chunk_offset] = RowID{chunk_id, chunk_offset};
         }
       }

@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "base_test.hpp"
-#include "gtest/gtest.h"
 
 #include "expression/expression_functional.hpp"
 #include "operators/abstract_read_only_operator.hpp"
@@ -89,7 +88,12 @@ class OperatorsTableScanTest : public BaseTest, public ::testing::WithParamInter
   }
 
   std::shared_ptr<TableWrapper> get_int_sorted_op() {
-    return load_and_encode_table("resources/test_data/tbl/int_sorted.tbl", 10,
+    return load_and_encode_table("resources/test_data/tbl/int_sorted.tbl", 4,
+                                 std::make_optional(std::make_pair(ColumnID(0), OrderByMode::Ascending)));
+  }
+
+  std::shared_ptr<TableWrapper> get_int_only_null_op() {
+    return load_and_encode_table("resources/test_data/tbl/int_only_null.tbl", 4,
                                  std::make_optional(std::make_pair(ColumnID(0), OrderByMode::Ascending)));
   }
 
@@ -103,14 +107,14 @@ class OperatorsTableScanTest : public BaseTest, public ::testing::WithParamInter
 
   std::shared_ptr<TableWrapper> get_table_op_filtered() {
     TableColumnDefinitions table_column_definitions;
-    table_column_definitions.emplace_back("a", DataType::Int);
-    table_column_definitions.emplace_back("b", DataType::Int);
+    table_column_definitions.emplace_back("a", DataType::Int, false);
+    table_column_definitions.emplace_back("b", DataType::Int, false);
 
     std::shared_ptr<Table> table = std::make_shared<Table>(table_column_definitions, TableType::References);
 
     const auto test_table_part_compressed = _int_int_partly_compressed->get_output();
 
-    auto pos_list = std::make_shared<PosList>();
+    auto pos_list = std::make_shared<RowIDPosList>();
     pos_list->emplace_back(RowID{ChunkID{2}, 0});
     pos_list->emplace_back(RowID{ChunkID{1}, 1});
     pos_list->emplace_back(RowID{ChunkID{1}, 3});
@@ -133,13 +137,15 @@ class OperatorsTableScanTest : public BaseTest, public ::testing::WithParamInter
   std::shared_ptr<TableWrapper> get_table_op_with_n_dict_entries(const int num_entries) {
     // Set up dictionary encoded table with a dictionary consisting of num_entries entries.
     TableColumnDefinitions table_column_definitions;
-    table_column_definitions.emplace_back("a", DataType::Int);
+    table_column_definitions.emplace_back("a", DataType::Int, false);
 
-    std::shared_ptr<Table> table = std::make_shared<Table>(table_column_definitions, TableType::Data);
+    std::shared_ptr<Table> table = std::make_shared<Table>(table_column_definitions, TableType::Data, 100'000);
 
     for (int i = 0; i <= num_entries; i++) {
       table->append({i});
     }
+
+    table->get_chunk(static_cast<ChunkID>(ChunkID{0}))->finalize();
 
     ChunkEncoder::encode_chunks(table, {ChunkID{0}}, {_encoding_type});
 
@@ -149,7 +155,7 @@ class OperatorsTableScanTest : public BaseTest, public ::testing::WithParamInter
   }
 
   std::shared_ptr<const Table> to_referencing_table(const std::shared_ptr<const Table>& table) {
-    auto pos_list = std::make_shared<PosList>();
+    auto pos_list = std::make_shared<RowIDPosList>();
     pos_list->reserve(table->row_count());
 
     for (auto chunk_id = ChunkID{0u}; chunk_id < table->chunk_count(); ++chunk_id) {
@@ -185,12 +191,12 @@ class OperatorsTableScanTest : public BaseTest, public ::testing::WithParamInter
       ChunkEncoder::encode_all_chunks(table, _encoding_type);
     }
 
-    auto pos_list_a = std::make_shared<PosList>(
-        PosList{RowID{ChunkID{0u}, 1u}, RowID{ChunkID{1u}, 0u}, RowID{ChunkID{0u}, 2u}, RowID{ChunkID{0u}, 3u}});
+    auto pos_list_a = std::make_shared<RowIDPosList>(
+        RowIDPosList{RowID{ChunkID{0u}, 1u}, RowID{ChunkID{1u}, 0u}, RowID{ChunkID{0u}, 2u}, RowID{ChunkID{0u}, 3u}});
     auto ref_segment_a = std::make_shared<ReferenceSegment>(table, ColumnID{0u}, pos_list_a);
 
-    auto pos_list_b = std::make_shared<PosList>(
-        PosList{NULL_ROW_ID, RowID{ChunkID{0u}, 0u}, RowID{ChunkID{1u}, 2u}, RowID{ChunkID{0u}, 1u}});
+    auto pos_list_b = std::make_shared<RowIDPosList>(
+        RowIDPosList{NULL_ROW_ID, RowID{ChunkID{0u}, 0u}, RowID{ChunkID{1u}, 2u}, RowID{ChunkID{0u}, 1u}});
     auto ref_segment_b = std::make_shared<ReferenceSegment>(table, ColumnID{1u}, pos_list_b);
 
     TableColumnDefinitions column_definitions;
@@ -252,14 +258,14 @@ class OperatorsTableScanTest : public BaseTest, public ::testing::WithParamInter
   std::shared_ptr<TableWrapper> _int_int_partly_compressed;
 };
 
-auto formatter = [](const ::testing::TestParamInfo<EncodingType> info) {
+auto table_scan_test_formatter = [](const ::testing::TestParamInfo<EncodingType> info) {
   return std::to_string(static_cast<uint32_t>(info.param));
 };
 
-INSTANTIATE_TEST_CASE_P(EncodingTypes, OperatorsTableScanTest,
-                        ::testing::Values(EncodingType::Unencoded, EncodingType::Dictionary, EncodingType::RunLength,
-                                          EncodingType::FrameOfReference),
-                        formatter);
+INSTANTIATE_TEST_SUITE_P(EncodingTypes, OperatorsTableScanTest,
+                         ::testing::Values(EncodingType::Unencoded, EncodingType::Dictionary, EncodingType::RunLength,
+                                           EncodingType::FrameOfReference),
+                         table_scan_test_formatter);
 
 TEST_P(OperatorsTableScanTest, DoubleScan) {
   std::shared_ptr<Table> expected_result = load_table("resources/test_data/tbl/int_float_filtered.tbl", 2);
@@ -271,14 +277,33 @@ TEST_P(OperatorsTableScanTest, DoubleScan) {
   scan_2->execute();
 
   EXPECT_TABLE_EQ_UNORDERED(scan_2->get_output(), expected_result);
+
+  // Sneaking in a test for the OperatorPerformanceData here, which doesn't really make sense to be tested without an
+  // operator:
+  const auto& performance_data = scan_2->performance_data();
+  EXPECT_TRUE(performance_data.executed);
+  EXPECT_GT(performance_data.walltime.count(), 0);
+  EXPECT_TRUE(performance_data.has_output);
+  EXPECT_EQ(performance_data.output_row_count, 1);
+  EXPECT_EQ(performance_data.output_chunk_count, 1);
 }
 
 TEST_P(OperatorsTableScanTest, EmptyResultScan) {
   auto scan_1 = create_table_scan(get_int_float_op(), ColumnID{0}, PredicateCondition::GreaterThan, 90000);
   scan_1->execute();
 
-  for (auto i = ChunkID{0}; i < scan_1->get_output()->chunk_count(); i++)
+  for (auto i = ChunkID{0}; i < scan_1->get_output()->chunk_count(); i++) {
     EXPECT_EQ(scan_1->get_output()->get_chunk(i)->column_count(), 2u);
+  }
+
+  // Sneaking in a test for the OperatorPerformanceData here, which doesn't really make sense to be tested without an
+  // operator:
+  const auto& performance_data = scan_1->performance_data();
+  EXPECT_TRUE(performance_data.executed);
+  EXPECT_GT(performance_data.walltime.count(), 0);
+  EXPECT_TRUE(performance_data.has_output);
+  EXPECT_EQ(performance_data.output_row_count, 0);
+  EXPECT_EQ(performance_data.output_chunk_count, 0);
 }
 
 TEST_P(OperatorsTableScanTest, SingleScan) {
@@ -294,6 +319,24 @@ TEST_P(OperatorsTableScanTest, SingleScanWithSortedSegmentEquals) {
   std::shared_ptr<Table> expected_result = load_table("resources/test_data/tbl/int_sorted_filtered.tbl", 1);
 
   auto scan = create_table_scan(get_int_sorted_op(), ColumnID{0}, PredicateCondition::Equals, 2);
+  scan->execute();
+
+  EXPECT_TABLE_EQ_UNORDERED(scan->get_output(), expected_result);
+}
+
+TEST_P(OperatorsTableScanTest, SingleScanWithSortedSegmentEqualsAllElementsEqualNull) {
+  std::shared_ptr<Table> expected_result = load_table("resources/test_data/tbl/int_empty_nullable.tbl", 1);
+
+  auto scan = create_table_scan(get_int_only_null_op(), ColumnID{0}, PredicateCondition::Equals, 2);
+  scan->execute();
+
+  EXPECT_TABLE_EQ_UNORDERED(scan->get_output(), expected_result);
+}
+
+TEST_P(OperatorsTableScanTest, SingleScanWithSortedSegmentEqualsAllPredicateValueLarger) {
+  std::shared_ptr<Table> expected_result = load_table("resources/test_data/tbl/int_empty.tbl", 1);
+
+  auto scan = create_table_scan(get_int_sorted_op(), ColumnID{0}, PredicateCondition::Equals, 6);
   scan->execute();
 
   EXPECT_TABLE_EQ_UNORDERED(scan->get_output(), expected_result);
@@ -800,7 +843,7 @@ TEST_P(OperatorsTableScanTest, BinaryScanOnNullable) {
       {ColumnID{0}, PredicateCondition::LessThan, 1235, {123, 1234}},
       {ColumnID{0}, PredicateCondition::LessThanEquals, 1234, {123, 1234}}};
 
-  const auto table = get_int_float_with_null_op(Chunk::MAX_SIZE);
+  const auto table = get_int_float_with_null_op(Chunk::DEFAULT_SIZE);
   for (const auto& [column_id, predicate_condition, value, expected_values] : predicates) {
     const auto scan = create_table_scan(table, column_id, predicate_condition, value);
     scan->execute();
@@ -808,7 +851,7 @@ TEST_P(OperatorsTableScanTest, BinaryScanOnNullable) {
   }
 }
 
-TEST_P(OperatorsTableScanTest, BinaryScanWithFloatValueOnIntColum) {
+TEST_P(OperatorsTableScanTest, BinaryScanWithFloatValueOnIntColumn) {
   auto predicates = std::vector<std::tuple<ColumnID, PredicateCondition, AllTypeVariant, std::vector<AllTypeVariant>>>{
       {ColumnID{0}, PredicateCondition::Equals, 1234.0f, {1234}},
       {ColumnID{0}, PredicateCondition::Equals, 1234.1f, {}},
@@ -885,6 +928,98 @@ TEST_P(OperatorsTableScanTest, GetImpl) {
   EXPECT_TRUE(dynamic_cast<ExpressionEvaluatorTableScanImpl*>(TableScan{get_int_float_op(), between_inclusive_(column_a, 0, null_())}.create_impl().get()));  // NOLINT
   EXPECT_TRUE(dynamic_cast<ColumnIsNullTableScanImpl*>(TableScan{get_int_float_with_null_op(), is_null_(column_an)}.create_impl().get()));  // NOLINT
   EXPECT_TRUE(dynamic_cast<ColumnIsNullTableScanImpl*>(TableScan{get_int_float_with_null_op(), is_not_null_(column_an)}.create_impl().get()));  // NOLINT
+
+  // Cases where the lossless_predicate_cast is used and the predicate condition gets adjusted:
+  {
+    const auto abstract_impl = TableScan{get_int_float_op(), greater_than_(column_b, 3.1)}.create_impl();
+    const auto impl = dynamic_cast<ColumnVsValueTableScanImpl*>(abstract_impl.get());
+    ASSERT_TRUE(impl);
+    EXPECT_EQ(impl->predicate_condition, PredicateCondition::GreaterThanEquals);
+    EXPECT_EQ(impl->value, AllTypeVariant{3.1000001430511474609375f});
+  }
+  {
+    const auto abstract_impl = TableScan{get_int_float_op(), greater_than_equals_(column_b, 3.1)}.create_impl();
+    const auto impl = dynamic_cast<ColumnVsValueTableScanImpl*>(abstract_impl.get());
+    ASSERT_TRUE(impl);
+    EXPECT_EQ(impl->predicate_condition, PredicateCondition::GreaterThanEquals);
+    EXPECT_EQ(impl->value, AllTypeVariant{3.1000001430511474609375f});
+  }
+  {
+    const auto abstract_impl = TableScan{get_int_float_op(), equals_(column_b, 3.1)}.create_impl();
+    const auto impl = dynamic_cast<ExpressionEvaluatorTableScanImpl*>(abstract_impl.get());
+    ASSERT_TRUE(impl);
+    // Cannot losslessly convert here.
+  }
+  {
+    const auto abstract_impl = TableScan{get_int_float_op(), less_than_(column_b, 3.1)}.create_impl();
+    const auto impl = dynamic_cast<ColumnVsValueTableScanImpl*>(abstract_impl.get());
+    ASSERT_TRUE(impl);
+    EXPECT_EQ(impl->predicate_condition, PredicateCondition::LessThanEquals);
+    EXPECT_EQ(impl->value, AllTypeVariant{3.099999904632568359375f});
+  }
+  {
+    const auto abstract_impl = TableScan{get_int_float_op(), less_than_equals_(column_b, 3.1)}.create_impl();
+    const auto impl = dynamic_cast<ColumnVsValueTableScanImpl*>(abstract_impl.get());
+    ASSERT_TRUE(impl);
+    EXPECT_EQ(impl->predicate_condition, PredicateCondition::LessThanEquals);
+    EXPECT_EQ(impl->value, AllTypeVariant{3.099999904632568359375f});
+  }
+
+  // Test it once with reversed roles:
+  {
+    const auto abstract_impl = TableScan{get_int_float_op(), greater_than_(3.1, column_b)}.create_impl();
+    const auto impl = dynamic_cast<ColumnVsValueTableScanImpl*>(abstract_impl.get());
+    ASSERT_TRUE(impl);
+    EXPECT_EQ(impl->predicate_condition, PredicateCondition::LessThanEquals);
+    EXPECT_EQ(impl->value, AllTypeVariant{3.099999904632568359375f});
+  }
+
+  // The same for different types of between:
+  {
+    const auto abstract_impl = TableScan{get_int_float_op(), between_inclusive_(column_b, 3.1, 4.1)}.create_impl();
+    const auto impl = dynamic_cast<ColumnBetweenTableScanImpl*>(abstract_impl.get());
+    ASSERT_TRUE(impl);
+    EXPECT_EQ(impl->predicate_condition, PredicateCondition::BetweenInclusive);
+    EXPECT_EQ(impl->left_value, AllTypeVariant{3.1000001430511474609375f});
+    EXPECT_EQ(impl->right_value, AllTypeVariant{4.099999904632568359375f});
+  }
+
+  {
+    const auto abstract_impl = TableScan{get_int_float_op(), between_inclusive_(column_b, 3.1, 4.0)}.create_impl();
+    const auto impl = dynamic_cast<ColumnBetweenTableScanImpl*>(abstract_impl.get());
+    ASSERT_TRUE(impl);
+    EXPECT_EQ(impl->predicate_condition, PredicateCondition::BetweenInclusive);
+    EXPECT_EQ(impl->left_value, AllTypeVariant{3.1000001430511474609375f});
+    EXPECT_EQ(impl->right_value, AllTypeVariant{4.0f});
+  }
+
+  {
+    const auto abstract_impl = TableScan{get_int_float_op(), between_upper_exclusive_(column_b, 3.1, 4.0)}.create_impl();  // NOLINT
+    const auto impl = dynamic_cast<ColumnBetweenTableScanImpl*>(abstract_impl.get());
+    ASSERT_TRUE(impl);
+    EXPECT_EQ(impl->predicate_condition, PredicateCondition::BetweenUpperExclusive);
+    EXPECT_EQ(impl->left_value, AllTypeVariant{3.1000001430511474609375f});
+    EXPECT_EQ(impl->right_value, AllTypeVariant{4.0f});
+  }
+
+  {
+    const auto abstract_impl = TableScan{get_int_float_op(), between_exclusive_(column_b, 3.1, 4.0)}.create_impl();
+    const auto impl = dynamic_cast<ColumnBetweenTableScanImpl*>(abstract_impl.get());
+    ASSERT_TRUE(impl);
+    EXPECT_EQ(impl->predicate_condition, PredicateCondition::BetweenUpperExclusive);
+    EXPECT_EQ(impl->left_value, AllTypeVariant{3.1000001430511474609375f});
+    EXPECT_EQ(impl->right_value, AllTypeVariant{4.0f});
+  }
+
+  {
+    const auto abstract_impl = TableScan{get_int_float_op(), between_exclusive_(column_b, 3.1, 4.1)}.create_impl();
+    const auto impl = dynamic_cast<ColumnBetweenTableScanImpl*>(abstract_impl.get());
+    ASSERT_TRUE(impl);
+    EXPECT_EQ(impl->predicate_condition, PredicateCondition::BetweenInclusive);
+    EXPECT_EQ(impl->left_value, AllTypeVariant{3.1000001430511474609375f});
+    EXPECT_EQ(impl->right_value, AllTypeVariant{4.099999904632568359375f});
+  }
+
   // clang-format on
 }
 

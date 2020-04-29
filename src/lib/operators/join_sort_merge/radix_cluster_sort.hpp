@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "column_materializer.hpp"
+#include "hyrise.hpp"
 #include "resolve_type.hpp"
 
 namespace opossum {
@@ -20,8 +21,8 @@ template <typename T>
 struct RadixClusterOutput {
   std::unique_ptr<MaterializedSegmentList<T>> clusters_left;
   std::unique_ptr<MaterializedSegmentList<T>> clusters_right;
-  std::unique_ptr<PosList> null_rows_left;
-  std::unique_ptr<PosList> null_rows_right;
+  std::unique_ptr<RowIDPosList> null_rows_left;
+  std::unique_ptr<RowIDPosList> null_rows_right;
 };
 
 /*
@@ -193,7 +194,7 @@ class RadixClusterSort {
       job->schedule();
     }
 
-    CurrentScheduler::wait_for_tasks(histogram_jobs);
+    Hyrise::get().scheduler()->wait_for_tasks(histogram_jobs);
 
     // Aggregate the chunks histograms to a table histogram and initialize the insert positions for each chunk
     for (auto& chunk_information : table_information.chunk_information) {
@@ -227,7 +228,7 @@ class RadixClusterSort {
       job->schedule();
     }
 
-    CurrentScheduler::wait_for_tasks(cluster_jobs);
+    Hyrise::get().scheduler()->wait_for_tasks(cluster_jobs);
 
     return output_table;
   }

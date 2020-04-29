@@ -1,25 +1,16 @@
-#include <boost/algorithm/string.hpp>
-#include <cxxopts.hpp>
 #include <filesystem>
 
-#include <fstream>
+#include <boost/algorithm/string.hpp>
+#include <cxxopts.hpp>
 
 #include "benchmark_runner.hpp"
 #include "cli_config_parser.hpp"
 #include "file_based_benchmark_item_runner.hpp"
 #include "file_based_table_generator.hpp"
-#include "import_export/csv_parser.hpp"
-#include "scheduler/current_scheduler.hpp"
-#include "scheduler/node_queue_scheduler.hpp"
-#include "scheduler/topology.hpp"
-#include "storage/storage_manager.hpp"
-#include "storage/table.hpp"
+#include "hyrise.hpp"
 #include "types.hpp"
-#include "utils/load_table.hpp"
 #include "utils/performance_warning.hpp"
 #include "utils/sqlite_add_indices.hpp"
-#include "utils/sqlite_wrapper.hpp"
-#include "utils/timer.hpp"
 
 /**
  * The Join Order Benchmark was introduced by Leis et al. "How good are query optimizers, really?".
@@ -49,27 +40,16 @@ int main(int argc, char* argv[]) {
   // Comma-separated query names or "all"
   std::string queries_str;
 
-  if (CLIConfigParser::cli_has_json_config(argc, argv)) {
-    // JSON config file was passed in
-    const auto json_config = CLIConfigParser::parse_json_config_file(argv[1]);
-    table_path = json_config.value("table_path", DEFAULT_TABLE_PATH);
-    query_path = json_config.value("query_path", DEFAULT_QUERY_PATH);
-    queries_str = json_config.value("queries", "all");
+  // Parse command line args
+  const auto cli_parse_result = cli_options.parse(argc, argv);
 
-    benchmark_config = std::make_shared<BenchmarkConfig>(CLIConfigParser::parse_basic_options_json_config(json_config));
+  if (CLIConfigParser::print_help_if_requested(cli_options, cli_parse_result)) return 0;
 
-  } else {
-    // Parse regular command line args
-    const auto cli_parse_result = cli_options.parse(argc, argv);
+  query_path = cli_parse_result["query_path"].as<std::string>();
+  table_path = cli_parse_result["table_path"].as<std::string>();
+  queries_str = cli_parse_result["queries"].as<std::string>();
 
-    if (CLIConfigParser::print_help_if_requested(cli_options, cli_parse_result)) return 0;
-
-    query_path = cli_parse_result["query_path"].as<std::string>();
-    table_path = cli_parse_result["table_path"].as<std::string>();
-    queries_str = cli_parse_result["queries"].as<std::string>();
-
-    benchmark_config = std::make_shared<BenchmarkConfig>(CLIConfigParser::parse_basic_cli_options(cli_parse_result));
-  }
+  benchmark_config = std::make_shared<BenchmarkConfig>(CLIConfigParser::parse_cli_options(cli_parse_result));
 
   // Check that the options "query_path" and "table_path" were specified
   if (query_path.empty() || table_path.empty()) {
@@ -116,14 +96,20 @@ int main(int argc, char* argv[]) {
   auto benchmark_item_runner =
       std::make_unique<FileBasedBenchmarkItemRunner>(benchmark_config, query_path, non_query_file_names, query_subset);
 
-  auto benchmark_runner =
-      BenchmarkRunner{*benchmark_config, std::move(benchmark_item_runner), std::move(table_generator), context};
+  if (benchmark_item_runner->items().empty()) {
+    std::cout << "No items to run.\n";
+    return 1;
+  }
+
+  auto benchmark_runner = std::make_shared<BenchmarkRunner>(*benchmark_config, std::move(benchmark_item_runner),
+                                                            std::move(table_generator), context);
+  Hyrise::get().benchmark_runner = benchmark_runner;
 
   if (benchmark_config->verify) {
-    add_indices_to_sqlite(query_path + "/schema.sql", query_path + "/fkindexes.sql", benchmark_runner.sqlite_wrapper);
+    add_indices_to_sqlite(query_path + "/schema.sql", query_path + "/fkindexes.sql", benchmark_runner->sqlite_wrapper);
   }
 
   std::cout << "done." << std::endl;
 
-  benchmark_runner.run();
+  benchmark_runner->run();
 }

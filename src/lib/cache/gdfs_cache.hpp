@@ -6,6 +6,7 @@
 
 #include "abstract_cache_impl.hpp"
 #include "boost/heap/fibonacci_heap.hpp"
+#include "utils/assert.hpp"
 
 namespace opossum {
 
@@ -71,7 +72,7 @@ class GDFSCache : public AbstractCacheImpl<Key, Value> {
       entry.value = value;
       entry.size = size;
       entry.frequency++;
-      entry.priority = _inflation + entry.frequency / entry.size;
+      entry.priority = _inflation + static_cast<double>(entry.frequency) / entry.size;
       _queue.update(handle);
 
       return;
@@ -88,17 +89,18 @@ class GDFSCache : public AbstractCacheImpl<Key, Value> {
 
     // Insert new item in cache.
     GDFSCacheEntry entry{key, value, 1, size, 0.0};
-    entry.priority = _inflation + entry.frequency / entry.size;
+    entry.priority = _inflation + static_cast<double>(entry.frequency) / entry.size;
     Handle handle = _queue.push(entry);
     _map[key] = handle;
   }
 
   Value& get(const Key& key) {
     auto it = _map.find(key);
+    DebugAssert(it != _map.end(), "key not present");
     Handle handle = it->second;
     GDFSCacheEntry& entry = (*handle);
     entry.frequency++;
-    entry.priority = _inflation + entry.frequency / entry.size;
+    entry.priority = _inflation + static_cast<double>(entry.frequency) / entry.size;
     _queue.update(handle);
     return entry.value;
   }
@@ -131,6 +133,17 @@ class GDFSCache : public AbstractCacheImpl<Key, Value> {
   ErasedIterator begin() { return ErasedIterator{std::make_unique<Iterator>(_map.begin())}; }
 
   ErasedIterator end() { return ErasedIterator{std::make_unique<Iterator>(_map.end())}; }
+
+  size_t frequency(const Key& key) {
+    const auto it = _map.find(key);
+    if (it == _map.end()) {
+      return size_t{0};
+    }
+
+    Handle handle = it->second;
+    GDFSCacheEntry& entry = (*handle);
+    return entry.frequency;
+  }
 
  protected:
   // Priority queue to hold all elements. Implemented as max-heap.

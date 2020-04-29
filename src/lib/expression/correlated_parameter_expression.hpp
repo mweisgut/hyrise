@@ -18,7 +18,7 @@ namespace opossum {
 class CorrelatedParameterExpression : public AbstractExpression {
  public:
   struct ReferencedExpressionInfo {
-    ReferencedExpressionInfo(const DataType data_type, const std::string& column_name);
+    ReferencedExpressionInfo(const DataType init_data_type, const std::string& init_column_name);
 
     bool operator==(const ReferencedExpressionInfo& rhs) const;
 
@@ -26,8 +26,8 @@ class CorrelatedParameterExpression : public AbstractExpression {
     std::string column_name;
   };
 
-  CorrelatedParameterExpression(const ParameterID parameter_id, const AbstractExpression& referenced_expression);
-  CorrelatedParameterExpression(const ParameterID parameter_id,
+  CorrelatedParameterExpression(const ParameterID init_parameter_id, const AbstractExpression& referenced_expression);
+  CorrelatedParameterExpression(const ParameterID init_parameter_id,
                                 const ReferencedExpressionInfo& referenced_expression_info);
 
   const std::optional<AllTypeVariant>& value() const;
@@ -35,14 +35,14 @@ class CorrelatedParameterExpression : public AbstractExpression {
 
   bool requires_computation() const override;
   std::shared_ptr<AbstractExpression> deep_copy() const override;
-  std::string as_column_name() const override;
+  std::string description(const DescriptionMode mode) const override;
   DataType data_type() const override;
 
   const ParameterID parameter_id;
 
  protected:
   bool _shallow_equals(const AbstractExpression& expression) const override;
-  size_t _on_hash() const override;
+  size_t _shallow_hash() const override;
   bool _on_is_nullable_on_lqp(const AbstractLQPNode& lqp) const override;
 
  private:

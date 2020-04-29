@@ -7,10 +7,10 @@
 #include "cache/gdfs_cache.hpp"
 #include "cache/lru_cache.hpp"
 #include "cache/lru_k_cache.hpp"
+#include "hyrise.hpp"
 #include "sql/sql_pipeline_builder.hpp"
 #include "sql/sql_pipeline_statement.hpp"
 #include "sql/sql_plan_cache.hpp"
-#include "storage/storage_manager.hpp"
 
 namespace opossum {
 
@@ -19,9 +19,9 @@ class QueryPlanCacheTest : public BaseTest {
   void SetUp() override {
     // Load tables.
     auto table_a = load_table("resources/test_data/tbl/int_float.tbl", 2);
-    StorageManager::get().add_table("table_a", std::move(table_a));
+    Hyrise::get().storage_manager.add_table("table_a", std::move(table_a));
     auto table_b = load_table("resources/test_data/tbl/int_float2.tbl", 2);
-    StorageManager::get().add_table("table_b", std::move(table_b));
+    Hyrise::get().storage_manager.add_table("table_b", std::move(table_b));
 
     _query_plan_cache_hits = 0;
 
@@ -141,6 +141,26 @@ TEST_F(QueryPlanCacheTest, AutomaticQueryOperatorCacheLRUK2) {
 
   // Check for the expected number of hits.
   EXPECT_EQ(5u, _query_plan_cache_hits);
+}
+
+// Check access to PQP cache. When set, check the underlying cache implementation, and verify that it is a GDFS cache
+// that supports retrieving the cache frequency count.
+TEST_F(QueryPlanCacheTest, CachedPQPFrequencyCount) {
+  // Create pipeline and pass pqp cache. Verify that this does not change default_pqp_cache.
+  auto sql_pipeline = SQLPipelineBuilder{Q1}.with_pqp_cache(cache).create_pipeline_statement();
+  EXPECT_EQ(Hyrise::get().default_pqp_cache, nullptr);
+
+  // Setting default_pqp_cache and verify it's set.
+  Hyrise::get().default_pqp_cache = cache;
+  EXPECT_NE(Hyrise::get().default_pqp_cache, nullptr);
+
+  // Create new pipeline, without setting a cache (default cache set previously). Execute pipeline and check if
+  // frequency of query is as expected.
+  auto new_sql_pipeline = SQLPipelineBuilder{Q1}.create_pipeline_statement();
+  new_sql_pipeline.get_result_table();
+  auto& gdfs_cache = dynamic_cast<GDFSCache<std::string, std::shared_ptr<AbstractOperator>>&>(
+      Hyrise::get().default_pqp_cache->unsafe_cache());
+  EXPECT_EQ(1, gdfs_cache.frequency(Q1));
 }
 
 }  // namespace opossum

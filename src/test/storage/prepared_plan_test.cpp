@@ -1,4 +1,4 @@
-#include "gtest/gtest.h"
+#include "base_test.hpp"
 
 #include "expression/expression_functional.hpp"
 #include "logical_query_plan/aggregate_node.hpp"
@@ -9,13 +9,12 @@
 #include "logical_query_plan/predicate_node.hpp"
 #include "logical_query_plan/projection_node.hpp"
 #include "storage/prepared_plan.hpp"
-#include "testing_assert.hpp"
 
 using namespace opossum::expression_functional;  // NOLINT
 
 namespace opossum {
 
-class PreparedPlanTest : public ::testing::Test {
+class PreparedPlanTest : public BaseTest {
  public:
   void SetUp() override {
     node_a = MockNode::make(MockNode::ColumnDefinitions{{DataType::Int, "a"}, {DataType::Int, "b"}});
@@ -29,7 +28,7 @@ class PreparedPlanTest : public ::testing::Test {
   LQPColumnReference a_a, b_x;
 };
 
-TEST_F(PreparedPlanTest, Instantiate) {
+TEST_F(PreparedPlanTest, InstantiateHashEqual) {
   // clang-format off
   const auto placeholder_parameter_a = placeholder_(ParameterID{0});
   const auto placeholder_parameter_b = placeholder_(ParameterID{2});
@@ -67,6 +66,8 @@ TEST_F(PreparedPlanTest, Instantiate) {
   // clang-format on
 
   EXPECT_LQP_EQ(actual_lqp, expected_lqp);
+  EXPECT_EQ(*actual_lqp, *expected_lqp);
+  EXPECT_EQ(actual_lqp->hash(), expected_lqp->hash());
 }
 
 }  // namespace opossum

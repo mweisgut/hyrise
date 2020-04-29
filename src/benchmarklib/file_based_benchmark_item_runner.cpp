@@ -1,12 +1,14 @@
 #include "file_based_benchmark_item_runner.hpp"
 
-#include <boost/algorithm/string.hpp>
 #include <filesystem>
 #include <fstream>
+
+#include <boost/algorithm/string.hpp>
 
 #include "SQLParser.h"
 #include "sql/create_sql_parser_error_message.hpp"
 #include "utils/assert.hpp"
+#include "utils/list_directory.hpp"
 
 namespace opossum {
 
@@ -25,12 +27,12 @@ FileBasedBenchmarkItemRunner::FileBasedBenchmarkItemRunner(
     _parse_query_file(query_path, query_subset);
   } else {
     // Recursively walk through the specified directory and add all files on the way
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(path)) {
-      if (std::filesystem::is_regular_file(entry) && is_sql_file(entry.path())) {
-        if (filename_blacklist.find(entry.path().filename()) != filename_blacklist.end()) {
+    for (const auto& entry : list_directory(path)) {
+      if (is_sql_file(entry)) {
+        if (filename_blacklist.find(entry.filename()) != filename_blacklist.end()) {
           continue;
         }
-        _parse_query_file(entry.path(), query_subset);
+        _parse_query_file(entry, query_subset);
       }
     }
   }
@@ -42,13 +44,14 @@ FileBasedBenchmarkItemRunner::FileBasedBenchmarkItemRunner(
   std::sort(_queries.begin(), _queries.end(), [](const Query& lhs, const Query& rhs) { return lhs.name < rhs.name; });
 }
 
-void FileBasedBenchmarkItemRunner::_on_execute_item(const BenchmarkItemID item_id, BenchmarkSQLExecutor& sql_executor) {
+bool FileBasedBenchmarkItemRunner::_on_execute_item(const BenchmarkItemID item_id, BenchmarkSQLExecutor& sql_executor) {
   std::shared_ptr<const Table> expected_result_table = nullptr;
   if (!_dedicated_expected_results.empty()) {
     expected_result_table = _dedicated_expected_results[item_id];
   }
 
-  sql_executor.execute(_queries[item_id].sql, expected_result_table);
+  const auto [status, table] = sql_executor.execute(_queries[item_id].sql, expected_result_table);
+  return status == SQLPipelineStatus::Success;
 }
 
 std::string FileBasedBenchmarkItemRunner::item_name(const BenchmarkItemID item_id) const {

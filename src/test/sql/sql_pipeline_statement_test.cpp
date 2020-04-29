@@ -1,25 +1,23 @@
 #include <memory>
 #include <string>
 #include <utility>
+
 #include "base_test.hpp"
 
 #include "SQLParser.h"
 #include "SQLParserResult.h"
-#include "gtest/gtest.h"
 
 #include "cache/cache.hpp"
+#include "hyrise.hpp"
 #include "logical_query_plan/join_node.hpp"
 #include "operators/abstract_join_operator.hpp"
 #include "operators/print.hpp"
 #include "operators/validate.hpp"
-#include "scheduler/current_scheduler.hpp"
 #include "scheduler/job_task.hpp"
 #include "scheduler/node_queue_scheduler.hpp"
-#include "scheduler/topology.hpp"
 #include "sql/sql_pipeline_builder.hpp"
 #include "sql/sql_pipeline_statement.hpp"
 #include "sql/sql_plan_cache.hpp"
-#include "storage/storage_manager.hpp"
 
 namespace {
 // This function is a slightly hacky way to check whether an LQP was optimized. This relies on JoinOrderingRule and
@@ -42,29 +40,29 @@ class SQLPipelineStatementTest : public BaseTest {
  protected:
   void SetUp() override {
     _table_a = load_table("resources/test_data/tbl/int_float.tbl", 2);
-    StorageManager::get().add_table("table_a", _table_a);
+    Hyrise::get().storage_manager.add_table("table_a", _table_a);
 
     _table_b = load_table("resources/test_data/tbl/int_float2.tbl", 2);
-    StorageManager::get().add_table("table_b", _table_b);
+    Hyrise::get().storage_manager.add_table("table_b", _table_b);
 
     _table_int = load_table("resources/test_data/tbl/int_int_int.tbl", 2);
-    StorageManager::get().add_table("table_int", _table_int);
+    Hyrise::get().storage_manager.add_table("table_int", _table_int);
 
     TableColumnDefinitions column_definitions;
-    column_definitions.emplace_back("a", DataType::Int);
-    column_definitions.emplace_back("b", DataType::Float);
-    column_definitions.emplace_back("bb", DataType::Float);
+    column_definitions.emplace_back("a", DataType::Int, false);
+    column_definitions.emplace_back("b", DataType::Float, false);
+    column_definitions.emplace_back("bb", DataType::Float, false);
     _join_result = std::make_shared<Table>(column_definitions, TableType::Data);
 
     _join_result->append({12345, 458.7f, 456.7f});
     _join_result->append({12345, 458.7f, 457.7f});
 
-    _int_float_column_definitions.emplace_back("a", DataType::Int);
-    _int_float_column_definitions.emplace_back("b", DataType::Float);
+    _int_float_column_definitions.emplace_back("a", DataType::Int, false);
+    _int_float_column_definitions.emplace_back("b", DataType::Float, false);
 
-    _int_int_int_column_definitions.emplace_back("a", DataType::Int);
-    _int_int_int_column_definitions.emplace_back("b", DataType::Int);
-    _int_int_int_column_definitions.emplace_back("c", DataType::Int);
+    _int_int_int_column_definitions.emplace_back("a", DataType::Int, false);
+    _int_int_int_column_definitions.emplace_back("b", DataType::Int, false);
+    _int_int_int_column_definitions.emplace_back("c", DataType::Int, false);
 
     _select_parse_result = std::make_shared<hsql::SQLParserResult>();
     hsql::SQLParser::parse(_select_query_a, _select_parse_result.get());
@@ -73,6 +71,7 @@ class SQLPipelineStatementTest : public BaseTest {
     hsql::SQLParser::parse(_multi_statement_dependant, _multi_statement_parse_result.get());
 
     _lqp_cache = std::make_shared<SQLLogicalPlanCache>();
+    _pqp_cache = std::make_shared<SQLPhysicalPlanCache>();
   }
 
   std::shared_ptr<Table> _table_a;
@@ -84,6 +83,7 @@ class SQLPipelineStatementTest : public BaseTest {
   TableColumnDefinitions _int_int_int_column_definitions;
 
   std::shared_ptr<SQLLogicalPlanCache> _lqp_cache;
+  std::shared_ptr<SQLPhysicalPlanCache> _pqp_cache;
 
   const std::string _select_query_a = "SELECT * FROM table_a";
   const std::string _invalid_sql = "SELECT FROM table_a";
@@ -93,14 +93,14 @@ class SQLPipelineStatementTest : public BaseTest {
   const std::string _multi_statement_query = "INSERT INTO table_a VALUES (11, 11.11); SELECT * FROM table_a";
   const std::string _multi_statement_dependant = "CREATE VIEW foo AS SELECT * FROM table_a; SELECT * FROM foo;";
 
-  const std::vector<std::string> _join_column_names{"a", "b", "bb"};
-
   std::shared_ptr<hsql::SQLParserResult> _select_parse_result;
   std::shared_ptr<hsql::SQLParserResult> _multi_statement_parse_result;
 
-  static bool _contains_validate(const std::vector<std::shared_ptr<OperatorTask>>& tasks) {
+  static bool _contains_validate(const std::vector<std::shared_ptr<AbstractTask>>& tasks) {
     for (const auto& task : tasks) {
-      if (std::dynamic_pointer_cast<Validate>(task->get_operator())) return true;
+      if (auto op_task = std::dynamic_pointer_cast<OperatorTask>(task)) {
+        if (std::dynamic_pointer_cast<Validate>(op_task->get_operator())) return true;
+      }
     }
     return false;
   }
@@ -121,7 +121,7 @@ TEST_F(SQLPipelineStatementTest, SimpleCreationWithoutMVCC) {
 }
 
 TEST_F(SQLPipelineStatementTest, SimpleCreationWithCustomTransactionContext) {
-  auto context = TransactionManager::get().new_transaction_context();
+  auto context = Hyrise::get().transaction_manager.new_transaction_context(AutoCommit::No);
   auto sql_pipeline = SQLPipelineBuilder{_select_query_a}.with_transaction_context(context).create_pipeline_statement();
 
   EXPECT_EQ(sql_pipeline.transaction_context().get(), context.get());
@@ -144,7 +144,7 @@ TEST_F(SQLPipelineStatementTest, SimpleParsedCreationWithoutMVCC) {
 }
 
 TEST_F(SQLPipelineStatementTest, SimpleParsedCreationWithCustomTransactionContext) {
-  auto context = TransactionManager::get().new_transaction_context();
+  auto context = Hyrise::get().transaction_manager.new_transaction_context(AutoCommit::No);
   auto sql_pipeline = SQLPipelineBuilder{_select_query_a}.with_transaction_context(context).create_pipeline_statement(
       _select_parse_result);
 
@@ -163,7 +163,7 @@ TEST_F(SQLPipelineStatementTest, ConstructorCombinations) {
   // Simple sanity test for all other constructor options
 
   const auto optimizer = Optimizer::create_default_optimizer();
-  auto transaction_context = TransactionManager::get().new_transaction_context();
+  auto transaction_context = Hyrise::get().transaction_manager.new_transaction_context(AutoCommit::No);
 
   // No transaction context
   auto sql_pipeline1 = SQLPipelineBuilder{_select_query_a}.with_optimizer(optimizer).create_pipeline_statement();
@@ -413,7 +413,7 @@ TEST_F(SQLPipelineStatementTest, GetQueryPlanWithoutMVCC) {
 }
 
 TEST_F(SQLPipelineStatementTest, GetQueryPlanWithCustomTransactionContext) {
-  auto context = TransactionManager::get().new_transaction_context();
+  auto context = Hyrise::get().transaction_manager.new_transaction_context(AutoCommit::No);
   auto sql_pipeline = SQLPipelineBuilder{_select_query_a}.with_transaction_context(context).create_pipeline_statement();
   const auto& plan = sql_pipeline.get_physical_plan();
 
@@ -487,26 +487,68 @@ TEST_F(SQLPipelineStatementTest, GetResultTableJoin) {
 TEST_F(SQLPipelineStatementTest, GetResultTableWithScheduler) {
   auto sql_pipeline = SQLPipelineBuilder{_join_query}.create_pipeline_statement();
 
-  Topology::use_fake_numa_topology(8, 4);
-  CurrentScheduler::set(std::make_shared<NodeQueueScheduler>());
+  Hyrise::get().topology.use_fake_numa_topology(8, 4);
+  Hyrise::get().set_scheduler(std::make_shared<NodeQueueScheduler>());
   const auto [pipeline_status, table] = sql_pipeline.get_result_table();
   EXPECT_EQ(pipeline_status, SQLPipelineStatus::Success);
 
   EXPECT_TABLE_EQ_UNORDERED(table, _join_result);
 }
 
-TEST_F(SQLPipelineStatementTest, GetResultTableNoOutput) {
-  const auto sql = "UPDATE table_a SET a = 1 WHERE a < 5";
+TEST_F(SQLPipelineStatementTest, GetResultTableNoOutputNoReexecution) {
+  const auto sql = "UPDATE table_a SET a = a + 1 WHERE b < 457";
   auto sql_pipeline = SQLPipelineBuilder{sql}.create_pipeline_statement();
 
   const auto [pipeline_status, table] = sql_pipeline.get_result_table();
   EXPECT_EQ(pipeline_status, SQLPipelineStatus::Success);
   EXPECT_EQ(table, nullptr);
 
-  // Check that this doesn't crash. This should return the previous table, otherwise the auto-commit will fail.
+  const auto verify_table_contents = []() {
+    const auto verification_sql = "SELECT a FROM table_a WHERE b < 457";
+    auto verification_pipeline = SQLPipelineBuilder{verification_sql}.create_pipeline_statement();
+    const auto [verification_pipeline_status, verification_table] = verification_pipeline.get_result_table();
+    EXPECT_EQ(verification_pipeline_status, SQLPipelineStatus::Success);
+    EXPECT_EQ(verification_table->get_value<int32_t>("a", 0), 124);
+  };
+  verify_table_contents();
+
+  // Check that this doesn't crash. This should not modify the table a second time.
   const auto [pipeline_status2, table2] = sql_pipeline.get_result_table();
   EXPECT_EQ(pipeline_status2, SQLPipelineStatus::Success);
   EXPECT_EQ(table2, nullptr);
+  verify_table_contents();
+}
+
+TEST_F(SQLPipelineStatementTest, GetResultTableNoReexecuteOnConflict) {
+  const auto transaction_context = Hyrise::get().transaction_manager.new_transaction_context(AutoCommit::No);
+
+  {
+    const auto conflicting_sql = "UPDATE table_a SET a = 100 WHERE b < 457";
+    auto conflicting_sql_pipeline = SQLPipelineBuilder{conflicting_sql}.create_pipeline_statement();
+    (void)conflicting_sql_pipeline.get_result_table();
+  }
+
+  const auto sql = "UPDATE table_a SET a = a + 1 WHERE b < 457";
+  auto sql_pipeline = SQLPipelineBuilder{sql}.with_transaction_context(transaction_context).create_pipeline_statement();
+
+  const auto [pipeline_status, table] = sql_pipeline.get_result_table();
+  EXPECT_EQ(pipeline_status, SQLPipelineStatus::Failure);
+  EXPECT_EQ(table, nullptr);
+
+  const auto verify_table_contents = []() {
+    const auto verification_sql = "SELECT a FROM table_a WHERE b < 457";
+    auto verification_pipeline = SQLPipelineBuilder{verification_sql}.create_pipeline_statement();
+    const auto [verification_pipeline_status, verification_table] = verification_pipeline.get_result_table();
+    EXPECT_EQ(verification_pipeline_status, SQLPipelineStatus::Success);
+    EXPECT_EQ(verification_table->get_value<int32_t>("a", 0), 100);
+  };
+  verify_table_contents();
+
+  // Check that this doesn't crash. This should not modify the table a second time.
+  const auto [pipeline_status2, table2] = sql_pipeline.get_result_table();
+  EXPECT_EQ(pipeline_status2, SQLPipelineStatus::Failure);
+  EXPECT_EQ(table2, nullptr);
+  verify_table_contents();
 }
 
 TEST_F(SQLPipelineStatementTest, GetResultTableNoMVCC) {
@@ -523,19 +565,19 @@ TEST_F(SQLPipelineStatementTest, GetResultTableNoMVCC) {
 
 TEST_F(SQLPipelineStatementTest, GetResultTableTransactionFailureExplicitTransaction) {
   // Mark a row as modified by a different transaction
-  _table_a->get_chunk(ChunkID{0})->get_scoped_mvcc_data_lock()->tids[0] = TransactionID{17};
+  _table_a->get_chunk(ChunkID{0})->mvcc_data()->set_tid(0, TransactionID{17});
 
   const auto sql = "UPDATE table_a SET a = 1";
-  auto transaction_context = TransactionManager::get().new_transaction_context();
+  auto transaction_context = Hyrise::get().transaction_manager.new_transaction_context(AutoCommit::No);
   auto sql_pipeline = SQLPipelineBuilder{sql}.with_transaction_context(transaction_context).create_pipeline_statement();
 
   const auto [pipeline_status, table] = sql_pipeline.get_result_table();
-  EXPECT_EQ(pipeline_status, SQLPipelineStatus::RolledBack);
+  EXPECT_EQ(pipeline_status, SQLPipelineStatus::Failure);
   EXPECT_EQ(table, nullptr);
 
   // Retrieving it again should give us the same result
   const auto [pipeline_status2, table2] = sql_pipeline.get_result_table();
-  EXPECT_EQ(pipeline_status2, SQLPipelineStatus::RolledBack);
+  EXPECT_EQ(pipeline_status2, SQLPipelineStatus::Failure);
   EXPECT_EQ(table2, nullptr);
 
   EXPECT_TRUE(transaction_context->aborted());
@@ -543,18 +585,18 @@ TEST_F(SQLPipelineStatementTest, GetResultTableTransactionFailureExplicitTransac
 
 TEST_F(SQLPipelineStatementTest, GetResultTableTransactionFailureAutoCommit) {
   // Mark a row as modified by a different transaction
-  _table_a->get_chunk(ChunkID{0})->get_scoped_mvcc_data_lock()->tids[0] = TransactionID{17};
+  _table_a->get_chunk(ChunkID{0})->mvcc_data()->set_tid(0, TransactionID{17});
 
   const auto sql = "UPDATE table_a SET a = 1";
   auto sql_pipeline = SQLPipelineBuilder{sql}.create_pipeline_statement();
 
   const auto [pipeline_status, table] = sql_pipeline.get_result_table();
-  EXPECT_EQ(pipeline_status, SQLPipelineStatus::RolledBack);
+  EXPECT_EQ(pipeline_status, SQLPipelineStatus::Failure);
   EXPECT_EQ(table, nullptr);
 
   // Retrieving it again should give us the same result
   const auto [pipeline_status2, table2] = sql_pipeline.get_result_table();
-  EXPECT_EQ(pipeline_status2, SQLPipelineStatus::RolledBack);
+  EXPECT_EQ(pipeline_status2, SQLPipelineStatus::Failure);
   EXPECT_EQ(table2, nullptr);
 }
 
@@ -645,6 +687,22 @@ TEST_F(SQLPipelineStatementTest, PrecheckDDLOperators) {
 
   auto sql_pipeline_6 = SQLPipelineBuilder{"CREATE TABLE t2 (a_int INTEGER); DROP TABLE t2"}.create_pipeline();
   EXPECT_NO_THROW(sql_pipeline_6.get_result_table());
+}
+
+TEST_F(SQLPipelineStatementTest, MetaTableNoCaching) {
+  const auto meta_table_query = "SELECT * FROM " + MetaTableManager::META_PREFIX + "tables";
+
+  auto sql_pipeline = SQLPipelineBuilder{meta_table_query}
+                          .with_lqp_cache(_lqp_cache)
+                          .with_pqp_cache(_pqp_cache)
+                          .create_pipeline_statement();
+  sql_pipeline.get_result_table();
+
+  EXPECT_EQ(_lqp_cache->size(), 0u);
+  EXPECT_FALSE(_lqp_cache->has(meta_table_query));
+
+  EXPECT_EQ(_pqp_cache->size(), 0u);
+  EXPECT_FALSE(_pqp_cache->has(meta_table_query));
 }
 
 }  // namespace opossum

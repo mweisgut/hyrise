@@ -60,12 +60,15 @@ SELECT l_returnflag, l_linestatus, SUM(l_quantity) as sum_qty, SUM(l_extendedpri
 --            AND n_regionkey = r_regionkey
 --            AND r_name = '[REGION]'
 --        )
--- ORDER BY s_acctbal DESC, n_name, s_name, p_partkey;
+-- ORDER BY s_acctbal DESC, n_name, s_name, p_partkey
+-- LIMIT 100;
+--
+-- The limit is not part of the printed query but hidden in the specification text.
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 --  2. Changed to ordering in the FROM clause for better join ordering
-SELECT s_acctbal, s_name, n_name, p_partkey, p_mfgr, s_address, s_phone, s_comment FROM "part", partsupp, supplier, nation, region WHERE p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND p_size = 15 AND p_type like '%BRASS' AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = 'EUROPE' AND ps_supplycost = (SELECT min(ps_supplycost) FROM supplier, partsupp, nation, region WHERE p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = 'EUROPE') ORDER BY s_acctbal DESC, n_name, s_name, p_partkey;
+SELECT s_acctbal, s_name, n_name, p_partkey, p_mfgr, s_address, s_phone, s_comment FROM "part", partsupp, supplier, nation, region WHERE p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND p_size = 15 AND p_type like '%BRASS' AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = 'EUROPE' AND ps_supplycost = (SELECT min(ps_supplycost) FROM supplier, partsupp, nation, region WHERE p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = 'EUROPE') ORDER BY s_acctbal DESC, n_name, s_name, p_partkey LIMIT 100;
 
 
 -- TPC-H 3
@@ -77,14 +80,17 @@ SELECT s_acctbal, s_name, n_name, p_partkey, p_mfgr, s_address, s_phone, s_comme
 -- WHERE c_mktsegment = '[SEGMENT]' AND c_custkey = o_custkey AND l_orderkey = o_orderkey
 -- AND o_orderdate < date '[DATE]' AND l_shipdate > date '[DATE]'
 -- GROUP BY l_orderkey, o_orderdate, o_shippriority
--- ORDER BY revenue DESC, o_orderdate;
+-- ORDER BY revenue DESC, o_orderdate
+-- LIMIT 10;
+--
+-- The limit is not part of the printed query but hidden in the specification text.
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 --  2. implicit type conversions for arithmetic operations are not supported
 --    a. changed 1 to 1.0 explicitly
 --  3. Be aware that we ignore the column ordering here.
-SELECT l_orderkey, SUM(l_extendedprice*(1.0-l_discount)) as revenue, o_orderdate, o_shippriority FROM customer, orders, lineitem WHERE c_mktsegment = 'BUILDING' AND c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate < '1995-03-15' AND l_shipdate > '1995-03-15' GROUP BY l_orderkey, o_orderdate, o_shippriority ORDER BY revenue DESC, o_orderdate;
+SELECT l_orderkey, SUM(l_extendedprice*(1.0-l_discount)) as revenue, o_orderdate, o_shippriority FROM customer, orders, lineitem WHERE c_mktsegment = 'BUILDING' AND c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate < '1995-03-15' AND l_shipdate > '1995-03-15' GROUP BY l_orderkey, o_orderdate, o_shippriority ORDER BY revenue DESC, o_orderdate LIMIT 10;
 
 
 -- TPC-H 4
@@ -109,7 +115,7 @@ SELECT l_orderkey, SUM(l_extendedprice*(1.0-l_discount)) as revenue, o_orderdate
 -- ORDER BY o_orderpriority;
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 --  2. dates are not supported
 --    a. use strings as data type for now
 --    b. pre-calculate date operation
@@ -146,7 +152,7 @@ SELECT o_orderpriority, count(*) as order_count FROM orders WHERE o_orderdate >=
 --      revenue DESC;
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 --  2. dates are not supported
 --    a. use strings as data type for now
 --    b. pre-calculate date operation
@@ -200,7 +206,7 @@ SELECT sum(l_extendedprice*l_discount) AS REVENUE FROM lineitem WHERE l_shipdate
 -- ORDER BY supp_nation, cust_nation, l_year;
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 --  2. dates are not supported
 --    a. use strings as data type for now
 --    b. pre-calculate date operation
@@ -208,7 +214,7 @@ SELECT sum(l_extendedprice*l_discount) AS REVENUE FROM lineitem WHERE l_shipdate
 --    a. Use SUBSTR instead (because our date columns are strings AND SQLite doesn't support EXTRACT)
 --  4. implicit type conversions for arithmetic operations are not supported
 --    a. changed 1 to 1.0 explicitly
-SELECT supp_nation, cust_nation, l_year, SUM(volume) as revenue FROM (SELECT n1.n_name as supp_nation, n2.n_name as cust_nation, SUBSTR(l_shipdate, 0, 4) as l_year, l_extendedprice * (1.0 - l_discount) as volume FROM supplier, lineitem, orders, customer, nation n1, nation n2 WHERE s_suppkey = l_suppkey AND o_orderkey = l_orderkey AND c_custkey = o_custkey AND s_nationkey = n1.n_nationkey AND c_nationkey = n2.n_nationkey AND ((n1.n_name = 'IRAN' AND n2.n_name = 'IRAQ') OR (n1.n_name = 'IRAQ' AND n2.n_name = 'IRAN')) AND l_shipdate BETWEEN '1995-01-01' AND '1996-12-31') as shipping GROUP BY supp_nation, cust_nation, l_year ORDER BY supp_nation, cust_nation, l_year;
+SELECT supp_nation, cust_nation, l_year, SUM(volume) as revenue FROM (SELECT n1.n_name as supp_nation, n2.n_name as cust_nation, SUBSTR(l_shipdate, 1, 4) as l_year, l_extendedprice * (1.0 - l_discount) as volume FROM supplier, lineitem, orders, customer, nation n1, nation n2 WHERE s_suppkey = l_suppkey AND o_orderkey = l_orderkey AND c_custkey = o_custkey AND s_nationkey = n1.n_nationkey AND c_nationkey = n2.n_nationkey AND ((n1.n_name = 'IRAN' AND n2.n_name = 'IRAQ') OR (n1.n_name = 'IRAQ' AND n2.n_name = 'IRAN')) AND l_shipdate BETWEEN '1995-01-01' AND '1996-12-31') as shipping GROUP BY supp_nation, cust_nation, l_year ORDER BY supp_nation, cust_nation, l_year;
 
 
 -- TPC-H 8
@@ -252,12 +258,12 @@ SELECT supp_nation, cust_nation, l_year, SUM(volume) as revenue FROM (SELECT n1.
 -- ORDER BY o_year;
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 --  2. dates are not supported
 --    a. use strings as data type for now
 --  3. Extract is not supported
 --    a. Use SUBSTR instead (because our date columns are strings AND SQLite doesn't support EXTRACT)
-SELECT o_year, SUM(case when nation = 'BRAZIL' then volume else 0 end) / SUM(volume) as mkt_share FROM (SELECT SUBSTR(o_orderdate, 0, 4) as o_year, l_extendedprice * (1-l_discount) as volume, n2.n_name as nation FROM "part", supplier, lineitem, orders, customer, nation n1, nation n2, region WHERE p_partkey = l_partkey AND s_suppkey = l_suppkey AND l_orderkey = o_orderkey AND o_custkey = c_custkey AND c_nationkey = n1.n_nationkey AND n1.n_regionkey = r_regionkey AND r_name = 'AMERICA' AND s_nationkey = n2.n_nationkey AND o_orderdate between '1995-01-01' AND '1996-12-31' AND p_type = 'ECONOMY ANODIZED STEEL') as all_nations GROUP BY o_year ORDER BY o_year;
+SELECT o_year, SUM(case when nation = 'BRAZIL' then volume else 0 end) / SUM(volume) as mkt_share FROM (SELECT SUBSTR(o_orderdate, 1, 4) as o_year, l_extendedprice * (1-l_discount) as volume, n2.n_name as nation FROM "part", supplier, lineitem, orders, customer, nation n1, nation n2, region WHERE p_partkey = l_partkey AND s_suppkey = l_suppkey AND l_orderkey = o_orderkey AND o_custkey = c_custkey AND c_nationkey = n1.n_nationkey AND n1.n_regionkey = r_regionkey AND r_name = 'AMERICA' AND s_nationkey = n2.n_nationkey AND o_orderdate between '1995-01-01' AND '1996-12-31' AND p_type = 'ECONOMY ANODIZED STEEL') as all_nations GROUP BY o_year ORDER BY o_year;
 
 
 -- TPC-H 9
@@ -287,12 +293,12 @@ SELECT o_year, SUM(case when nation = 'BRAZIL' then volume else 0 end) / SUM(vol
 -- ORDER BY nation, o_year DESC;
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 --  2. Extract is not supported
 --    a. Use SUBSTR instead
 --  3. implicit type conversions for arithmetic operations are not supported
 --    a. changed 1 to 1.0 explicitly
-SELECT nation, o_year, SUM(amount) as sum_profit FROM (SELECT n_name as nation, SUBSTR(o_orderdate, 0, 4) as o_year, l_extendedprice * (1 - l_discount) - ps_supplycost * l_quantity as amount FROM part, supplier, lineitem, partsupp, orders, nation WHERE s_suppkey = l_suppkey AND ps_suppkey = l_suppkey AND ps_partkey = l_partkey AND p_partkey = l_partkey AND o_orderkey = l_orderkey AND s_nationkey = n_nationkey AND p_name like '%green%') as profit GROUP BY nation, o_year ORDER BY nation, o_year DESC;
+SELECT nation, o_year, SUM(amount) as sum_profit FROM (SELECT n_name as nation, SUBSTR(o_orderdate, 1, 4) as o_year, l_extendedprice * (1 - l_discount) - ps_supplycost * l_quantity as amount FROM part, supplier, lineitem, partsupp, orders, nation WHERE s_suppkey = l_suppkey AND ps_suppkey = l_suppkey AND ps_partkey = l_partkey AND p_partkey = l_partkey AND o_orderkey = l_orderkey AND s_nationkey = n_nationkey AND p_name like '%green%') as profit GROUP BY nation, o_year ORDER BY nation, o_year DESC;
 
 
 -- TPC-H 10
@@ -329,17 +335,20 @@ SELECT nation, o_year, SUM(amount) as sum_profit FROM (SELECT n_name as nation, 
 --      c_address,
 --      c_comment
 -- ORDER BY
---      revenue DESC;
+--      revenue DESC
+-- LIMIT 20;
+--
+-- The limit is not part of the printed query but hidden in the specification text.
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 --  2. dates are not supported
 --    a. use strings as data type for now
 --    b. pre-calculate date operation
 --  3. implicit type conversions for arithmetic operations are not supported
 --    a. changed 1 to 1.0 explicitly
 --  4. Be aware that we ignore the column ordering here
-SELECT c_custkey, c_name, SUM(l_extendedprice * (1.0 - l_discount)) as revenue, c_acctbal, n_name, c_address, c_phone, c_comment FROM customer, orders, lineitem, nation WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate >= '1993-10-01' AND o_orderdate < '1994-01-01' AND l_returnflag = 'R' AND c_nationkey = n_nationkey GROUP BY c_custkey, c_name, c_acctbal, c_phone, n_name, c_address, c_comment ORDER BY revenue DESC;
+SELECT c_custkey, c_name, SUM(l_extendedprice * (1.0 - l_discount)) as revenue, c_acctbal, n_name, c_address, c_phone, c_comment FROM customer, orders, lineitem, nation WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate >= '1993-10-01' AND o_orderdate < '1994-01-01' AND l_returnflag = 'R' AND c_nationkey = n_nationkey GROUP BY c_custkey, c_name, c_acctbal, c_phone, n_name, c_address, c_comment ORDER BY revenue DESC LIMIT 20;
 
 
 -- TPC-H 11
@@ -366,7 +375,7 @@ SELECT c_custkey, c_name, SUM(l_extendedprice * (1.0 - l_discount)) as revenue, 
 -- ORDER BY value DESC;
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 SELECT ps_partkey, SUM(ps_supplycost * ps_availqty) as value FROM partsupp, supplier, nation WHERE ps_suppkey = s_suppkey AND s_nationkey = n_nationkey AND n_name = 'GERMANY' GROUP BY ps_partkey having SUM(ps_supplycost * ps_availqty) > (SELECT SUM(ps_supplycost * ps_availqty) * 0.0001 FROM partsupp, supplier, nation WHERE ps_suppkey = s_suppkey AND s_nationkey = n_nationkey AND n_name = 'GERMANY') ORDER BY value DESC;
 
 
@@ -398,7 +407,7 @@ SELECT ps_partkey, SUM(ps_supplycost * ps_availqty) as value FROM partsupp, supp
 -- ORDER BY l_shipmode;
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 --  2. dates are not supported
 --    a. use strings as data type for now
 --    b. pre-calculate date operation
@@ -422,7 +431,7 @@ SELECT l_shipmode, SUM(case when o_orderpriority ='1-URGENT' or o_orderpriority 
 -- ORDER BY custdist DESC, c_count DESC;
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 SELECT c_count, count(*) as custdist FROM (SELECT c_custkey, count(o_orderkey) as c_count FROM customer left outer join orders on c_custkey = o_custkey AND o_comment not like '%special%request%' GROUP BY c_custkey) as c_orders GROUP BY c_count ORDER BY custdist DESC, c_count DESC;
 
 
@@ -442,7 +451,7 @@ SELECT c_count, count(*) as custdist FROM (SELECT c_custkey, count(o_orderkey) a
 --    AND l_shipdate < date '[DATE]' + interval '1' month;
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 --  2. dates are not supported
 --    a. use strings as data type for now
 --    b. pre-calculate date operation
@@ -476,7 +485,7 @@ SELECT 100.00 * SUM(case when p_type like 'PROMO%' then l_extendedprice*(1.0-l_d
 -- drop view revenue[STREAM_ID];
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 --  2. "revenue[STREAM_ID]" renamed to "revenue"
 --  2. dates are not supported
 --    a. use strings as data type for now
@@ -509,7 +518,7 @@ drop view revenue;
 -- ORDER BY supplier_cnt DESC, p_brand, p_type, p_size;
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 SELECT p_brand, p_type, p_size, count(distinct ps_suppkey) as supplier_cnt FROM partsupp, "part" WHERE p_partkey = ps_partkey AND p_brand <> 'Brand#45' AND p_type not like 'MEDIUM POLISHED%' AND p_size in (49, 14, 23, 45, 19, 3, 36, 9) AND ps_suppkey not in (SELECT s_suppkey FROM supplier WHERE s_comment like '%Customer%Complaints%') GROUP BY p_brand, p_type, p_size ORDER BY supplier_cnt DESC, p_brand, p_type, p_size;
 
 
@@ -530,7 +539,7 @@ SELECT p_brand, p_type, p_size, count(distinct ps_suppkey) as supplier_cnt FROM 
 --    );
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 SELECT SUM(l_extendedprice) / 7.0 as avg_yearly FROM lineitem, "part" WHERE p_partkey = l_partkey AND p_brand = 'Brand#23' AND p_container = 'MED BOX' AND l_quantity < (SELECT 0.2 * avg(l_quantity) FROM lineitem WHERE l_partkey = p_partkey);
 
 
@@ -551,10 +560,13 @@ SELECT SUM(l_extendedprice) / 7.0 as avg_yearly FROM lineitem, "part" WHERE p_pa
 --    AND o_orderkey = l_orderkey
 -- GROUP BY c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice
 -- ORDER BY o_totalprice DESC, o_orderdate;
+-- LIMIT 100;
+--
+-- The limit is not part of the printed query but hidden in the specification text.
 --
 -- Changes:
---  1. Random values are hardcoded
-SELECT c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice, SUM(l_quantity) FROM customer, orders, lineitem WHERE o_orderkey in (SELECT l_orderkey FROM lineitem GROUP BY l_orderkey having SUM(l_quantity) > 300) AND c_custkey = o_custkey AND o_orderkey = l_orderkey GROUP BY c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice ORDER BY o_totalprice DESC, o_orderdate;
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
+SELECT c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice, SUM(l_quantity) FROM customer, orders, lineitem WHERE o_orderkey in (SELECT l_orderkey FROM lineitem GROUP BY l_orderkey having SUM(l_quantity) > 300) AND c_custkey = o_custkey AND o_orderkey = l_orderkey GROUP BY c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice ORDER BY o_totalprice DESC, o_orderdate LIMIT 100;
 
 
 -- TPC-H 19
@@ -593,7 +605,7 @@ SELECT c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice, SUM(l_quantity)
 --    );
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 --  2. implicit type conversions for arithmetic operations are not supported
 --    a. changed 1 to 1.0 explicitly
 SELECT SUM(l_extendedprice * (1.0 - l_discount)) as revenue FROM lineitem, "part" WHERE (p_partkey = l_partkey AND p_brand = 'Brand#12' AND p_container in ('SM CASE', 'SM BOX', 'SM PACK', 'SM PKG') AND l_quantity >= 1 AND l_quantity <= 1 + 10 AND p_size between 1 AND 5 AND l_shipmode in ('AIR', 'AIR REG') AND l_shipinstruct = 'DELIVER IN PERSON') or (p_partkey = l_partkey AND p_brand = 'Brand#23' AND p_container in ('MED BAG', 'MED BOX', 'MED PKG', 'MED PACK') AND l_quantity >= 10 AND l_quantity <= 10 + 10 AND p_size between 1 AND 10 AND l_shipmode in ('AIR', 'AIR REG') AND l_shipinstruct = 'DELIVER IN PERSON') or (p_partkey = l_partkey AND p_brand = 'Brand#34' AND p_container in ('LG CASE', 'LG BOX', 'LG PACK', 'LG PKG') AND l_quantity >= 20 AND l_quantity <= 20 + 10 AND p_size between 1 AND 15 AND l_shipmode in ('AIR', 'AIR REG') AND l_shipinstruct = 'DELIVER IN PERSON');
@@ -629,7 +641,7 @@ SELECT SUM(l_extendedprice * (1.0 - l_discount)) as revenue FROM lineitem, "part
 -- ORDER BY s_name;
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 --  2. dates are not supported
 --    a. use strings as data type for now
 --    b. pre-calculate date operation
@@ -664,14 +676,17 @@ SELECT s_name, s_address FROM supplier, nation WHERE s_suppkey in (SELECT ps_sup
 --    AND s_nationkey = n_nationkey
 --    AND n_name = '[NATION]'
 -- GROUP BY s_name
--- ORDER BY numwait DESC, s_name;
+-- ORDER BY numwait DESC, s_name
+-- LIMIT 100;
+--
+-- The limit is not part of the printed query but hidden in the specification text.
 --
 -- Changes:
---  1. Random values are hardcoded
+--  1. This file contains hard-coded parameters to facilitate copy-and-paste into the console
 --  2. dates are not supported
 --    a. use strings as data type for now
 --    b. pre-calculate date operation
-SELECT s_name, count(*) as numwait FROM supplier, lineitem l1, orders, nation WHERE s_suppkey = l1.l_suppkey AND o_orderkey = l1.l_orderkey AND o_orderstatus = 'F' AND l1.l_receiptdate > l1.l_commitdate AND exists (SELECT * FROM lineitem l2 WHERE l2.l_orderkey = l1.l_orderkey AND l2.l_suppkey <> l1.l_suppkey) AND not exists (SELECT * FROM lineitem l3 WHERE l3.l_orderkey = l1.l_orderkey AND l3.l_suppkey <> l1.l_suppkey AND l3.l_receiptdate > l3.l_commitdate) AND s_nationkey = n_nationkey AND n_name = 'SAUDI ARABIA' GROUP BY s_name ORDER BY numwait DESC, s_name;
+SELECT s_name, count(*) as numwait FROM supplier, lineitem l1, orders, nation WHERE s_suppkey = l1.l_suppkey AND o_orderkey = l1.l_orderkey AND o_orderstatus = 'F' AND l1.l_receiptdate > l1.l_commitdate AND exists (SELECT * FROM lineitem l2 WHERE l2.l_orderkey = l1.l_orderkey AND l2.l_suppkey <> l1.l_suppkey) AND not exists (SELECT * FROM lineitem l3 WHERE l3.l_orderkey = l1.l_orderkey AND l3.l_suppkey <> l1.l_suppkey AND l3.l_receiptdate > l3.l_commitdate) AND s_nationkey = n_nationkey AND n_name = 'SAUDI ARABIA' GROUP BY s_name ORDER BY numwait DESC, s_name LIMIT 100;
 
 
 -- TPC-H 22

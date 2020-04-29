@@ -17,10 +17,10 @@ std::ostream& operator<<(std::ostream& stream, const DatetimeComponent datetime_
  */
 class ExtractExpression : public AbstractExpression {
  public:
-  ExtractExpression(const DatetimeComponent datetime_component, const std::shared_ptr<AbstractExpression>& from);
+  ExtractExpression(const DatetimeComponent init_datetime_component, const std::shared_ptr<AbstractExpression>& from);
 
   std::shared_ptr<AbstractExpression> deep_copy() const override;
-  std::string as_column_name() const override;
+  std::string description(const DescriptionMode mode) const override;
   DataType data_type() const override;
 
   std::shared_ptr<AbstractExpression> from() const;
@@ -29,7 +29,7 @@ class ExtractExpression : public AbstractExpression {
 
  protected:
   bool _shallow_equals(const AbstractExpression& expression) const override;
-  size_t _on_hash() const override;
+  size_t _shallow_hash() const override;
 };
 
 }  // namespace opossum

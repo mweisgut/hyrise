@@ -1,10 +1,6 @@
 #pragma once
 
 #include <tbb/concurrent_vector.h>
-#include <boost/bimap.hpp>
-#include <boost/circular_buffer.hpp>
-#include <boost/container/pmr/polymorphic_allocator.hpp>
-#include <boost/operators.hpp>
 
 #include <cstdint>
 #include <iostream>
@@ -13,6 +9,11 @@
 #include <string>
 #include <tuple>
 #include <vector>
+
+#include <boost/bimap.hpp>
+#include <boost/circular_buffer.hpp>
+#include <boost/container/pmr/polymorphic_allocator.hpp>
+#include <boost/operators.hpp>
 
 #include "strong_typedef.hpp"
 #include "utils/assert.hpp"
@@ -38,6 +39,7 @@
 
 STRONG_TYPEDEF(uint32_t, ChunkID);
 STRONG_TYPEDEF(uint16_t, ColumnID);
+STRONG_TYPEDEF(opossum::ColumnID::base_type, ColumnCount);
 STRONG_TYPEDEF(uint32_t, ValueID);  // Cannot be larger than ChunkOffset
 STRONG_TYPEDEF(uint32_t, NodeID);
 STRONG_TYPEDEF(uint32_t, CpuID);
@@ -61,6 +63,8 @@ using Cost = float;
 // different memory sources. These sources are, for example, specific NUMA nodes or non-volatile memory. Without PMR,
 // we would need to explicitly make the allocator part of the class. This would make DRAM and NVM containers type-
 // incompatible. Thanks to PMR, the type is erased and both can co-exist.
+//
+// TODO(anyone): replace this with std::pmr once libc++ supports PMR.
 template <typename T>
 using PolymorphicAllocator = boost::container::pmr::polymorphic_allocator<T>;
 
@@ -78,40 +82,11 @@ using pmr_string = std::basic_string<char, std::char_traits<char>, PolymorphicAl
 // `pmr_vector<pmr_string>` will pass its memory resource down to the strings while a `pmr_vector<std::string>` will
 // allocate the space for the vector at the correct location while the content of the strings will be in default
 // storage.
+// Note that a container initialized with a given allocator will keep that allocator, even if it is copy/move assigned:
+//   pmr_vector<int> a, b{alloc};
+//   a = b;  // a does NOT use alloc, neither for its current values, nor for future allocations (#623).
 template <typename T>
 using pmr_vector = std::vector<T, PolymorphicAllocator<T>>;
-
-// We are not using PMR here because of the problems described in #281.
-// Short version: The current TBB breaks with it, because it needs rebind.
-// Once that works, replace the class below with
-// using pmr_concurrent_vector = tbb::concurrent_vector<T, PolymorphicAllocator<T>>;
-template <typename T>
-class pmr_concurrent_vector : public tbb::concurrent_vector<T> {
- public:
-  pmr_concurrent_vector(PolymorphicAllocator<T> alloc = {}) : pmr_concurrent_vector(0, alloc) {}  // NOLINT
-  pmr_concurrent_vector(std::initializer_list<T> init_list, PolymorphicAllocator<T> alloc = {})
-      : tbb::concurrent_vector<T>(init_list), _alloc(alloc) {}         // NOLINT
-  pmr_concurrent_vector(size_t n, PolymorphicAllocator<T> alloc = {})  // NOLINT
-      : pmr_concurrent_vector(n, T{}, alloc) {}
-  pmr_concurrent_vector(size_t n, T val, PolymorphicAllocator<T> alloc = {})  // NOLINT
-      : tbb::concurrent_vector<T>(n, val), _alloc(alloc) {}
-  pmr_concurrent_vector(tbb::concurrent_vector<T> other, PolymorphicAllocator<T> alloc = {})  // NOLINT
-      : tbb::concurrent_vector<T>(other), _alloc(alloc) {}
-  pmr_concurrent_vector(const std::vector<T>& values, PolymorphicAllocator<T> alloc = {})  // NOLINT
-      : tbb::concurrent_vector<T>(values.begin(), values.end()), _alloc(alloc) {}
-  pmr_concurrent_vector(std::vector<T>&& values, PolymorphicAllocator<T> alloc = {})  // NOLINT
-      : tbb::concurrent_vector<T>(std::make_move_iterator(values.begin()), std::make_move_iterator(values.end())),
-        _alloc(alloc) {}
-
-  template <class I>
-  pmr_concurrent_vector(I first, I last, PolymorphicAllocator<T> alloc = {})
-      : tbb::concurrent_vector<T>(first, last), _alloc(alloc) {}
-
-  const PolymorphicAllocator<T>& get_allocator() const { return _alloc; }
-
- protected:
-  PolymorphicAllocator<T> _alloc;
-};
 
 template <typename T>
 using pmr_ring_buffer = boost::circular_buffer<T, PolymorphicAllocator<T>>;
@@ -124,14 +99,6 @@ constexpr ChunkID INVALID_CHUNK_ID{std::numeric_limits<ChunkID::base_type>::max(
 struct RowID {
   ChunkID chunk_id{INVALID_CHUNK_ID};
   ChunkOffset chunk_offset{INVALID_CHUNK_OFFSET};
-
-  RowID() = default;
-
-  RowID(const ChunkID chunk_id, const ChunkOffset chunk_offset) : chunk_id(chunk_id), chunk_offset(chunk_offset) {
-    DebugAssert((chunk_offset == INVALID_CHUNK_OFFSET) == (chunk_id == INVALID_CHUNK_ID),
-                "If you pass in one of the arguments as INVALID/NULL, the other has to be INVALID/NULL as well. This "
-                "makes sure there is just one value representing an invalid row id.");
-  }
 
   // Faster than row_id == ROW_ID_NULL, since we only compare the ChunkOffset
   bool is_null() const { return chunk_offset == INVALID_CHUNK_OFFSET; }
@@ -213,6 +180,9 @@ enum class PredicateCondition {
 // @return whether the PredicateCondition takes exactly two arguments
 bool is_binary_predicate_condition(const PredicateCondition predicate_condition);
 
+// @return whether the PredicateCondition takes exactly two arguments and is not one of LIKE or IN
+bool is_binary_numeric_predicate_condition(const PredicateCondition predicate_condition);
+
 bool is_between_predicate_condition(PredicateCondition predicate_condition);
 
 bool is_lower_inclusive_between(PredicateCondition predicate_condition);
@@ -225,6 +195,12 @@ PredicateCondition flip_predicate_condition(const PredicateCondition predicate_c
 // ">" becomes "<=" etc.
 PredicateCondition inverse_predicate_condition(const PredicateCondition predicate_condition);
 
+// Split up, e.g., BetweenUpperExclusive into {GreaterThanEquals, LessThan}
+std::pair<PredicateCondition, PredicateCondition> between_to_conditions(const PredicateCondition predicate_condition);
+
+// Join, e.g., {GreaterThanEquals, LessThan} into BetweenUpperExclusive
+PredicateCondition conditions_to_between(const PredicateCondition lower, const PredicateCondition upper);
+
 // Let R and S be two tables and we want to perform `R <JoinMode> S ON <condition>`
 // AntiNullAsTrue:    If for a tuple Ri in R, there is a tuple Sj in S so that <condition> is NULL or TRUE, Ri is
 //                      dropped. This behavior mirrors NOT IN.
@@ -232,9 +208,10 @@ PredicateCondition inverse_predicate_condition(const PredicateCondition predicat
 //                      dropped. This behavior mirrors NOT EXISTS
 enum class JoinMode { Inner, Left, Right, FullOuter, Cross, Semi, AntiNullAsTrue, AntiNullAsFalse };
 
-enum class IndexSide { Left, Right };
-
-enum class UnionMode { Positions, All };
+// SQL set operations come in two flavors, with and without `ALL`, e.g., `UNION` and `UNION ALL`.
+// We have a third mode (Positions) that is used to intersect position lists that point to the same table,
+// see union_positions.hpp for details.
+enum class SetOperationMode { Unique, All, Positions };
 
 enum class OrderByMode { Ascending, Descending, AscendingNullsLast, DescendingNullsLast };
 
@@ -244,7 +221,17 @@ enum class DescriptionMode { SingleLine, MultiLine };
 
 enum class UseMvcc : bool { Yes = true, No = false };
 
-enum class CleanupTemporaries : bool { Yes = true, No = false };
+enum class RollbackReason : bool { User, Conflict };
+
+enum class MemoryUsageCalculationMode { Sampled, Full };
+
+enum class EraseReferencedSegmentType : bool { Yes = true, No = false };
+
+enum class MetaTableChangeType { Insert, Delete, Update };
+
+enum class AutoCommit : bool { Yes = true, No = false };
+
+enum class LogLevel { Debug, Info, Warning };
 
 // Used as a template parameter that is passed whenever we conditionally erase the type of a template. This is done to
 // reduce the compile time at the cost of the runtime performance. Examples are iterators, which are replaced by
@@ -267,14 +254,16 @@ struct Null {};
 extern const boost::bimap<PredicateCondition, std::string> predicate_condition_to_string;
 extern const boost::bimap<OrderByMode, std::string> order_by_mode_to_string;
 extern const boost::bimap<JoinMode, std::string> join_mode_to_string;
-extern const boost::bimap<UnionMode, std::string> union_mode_to_string;
+extern const boost::bimap<SetOperationMode, std::string> set_operation_mode_to_string;
 extern const boost::bimap<TableType, std::string> table_type_to_string;
 
 std::ostream& operator<<(std::ostream& stream, PredicateCondition predicate_condition);
 std::ostream& operator<<(std::ostream& stream, OrderByMode order_by_mode);
 std::ostream& operator<<(std::ostream& stream, JoinMode join_mode);
-std::ostream& operator<<(std::ostream& stream, UnionMode union_mode);
+std::ostream& operator<<(std::ostream& stream, SetOperationMode set_operation_mode);
 std::ostream& operator<<(std::ostream& stream, TableType table_type);
+
+using BoolAsByteType = uint8_t;
 
 }  // namespace opossum
 

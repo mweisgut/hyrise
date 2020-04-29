@@ -4,12 +4,12 @@
 #include "../micro_benchmark_basic_fixture.hpp"
 #include "SQLParser.h"
 #include "benchmark/benchmark.h"
+#include "hyrise.hpp"
 #include "logical_query_plan/lqp_translator.hpp"
 #include "sql/sql_pipeline_builder.hpp"
 #include "sql/sql_pipeline_statement.hpp"
 #include "sql/sql_plan_cache.hpp"
 #include "sql/sql_translator.hpp"
-#include "storage/storage_manager.hpp"
 #include "utils/load_table.hpp"
 
 namespace opossum {
@@ -22,7 +22,7 @@ class SQLBenchmark : public MicroBenchmarkBasicFixture {
   void SetUp(benchmark::State& st) override {
     // Add tables to StorageManager.
     // This is required for the translator to get the column names of a table.
-    auto& storage_manager = StorageManager::get();
+    auto& storage_manager = Hyrise::get().storage_manager;
     storage_manager.add_table("customer", load_table("resources/test_data/tbl/tpch/minimal/customer.tbl"));
     storage_manager.add_table("lineitem", load_table("resources/test_data/tbl/tpch/minimal/lineitem.tbl"));
     storage_manager.add_table("orders", load_table("resources/test_data/tbl/tpch/minimal/orders.tbl"));
@@ -33,7 +33,7 @@ class SQLBenchmark : public MicroBenchmarkBasicFixture {
     for (auto _ : state) {
       SQLParserResult result;
       SQLParser::parseSQLString(query, &result);
-      auto result_node = SQLTranslator{UseMvcc::No}.translate_parser_result(result)[0];
+      auto result_node = SQLTranslator{UseMvcc::No}.translate_parser_result(result).lqp_nodes.at(0);
       LQPTranslator{}.translate_node(result_node);
     }
   }
@@ -51,7 +51,7 @@ class SQLBenchmark : public MicroBenchmarkBasicFixture {
     SQLParserResult result;
     SQLParser::parseSQLString(query, &result);
     for (auto _ : state) {
-      auto result_node = SQLTranslator{UseMvcc::No}.translate_parser_result(result)[0];
+      auto result_node = SQLTranslator{UseMvcc::No}.translate_parser_result(result).lqp_nodes.at(0);
       LQPTranslator{}.translate_node(result_node);
     }
   }

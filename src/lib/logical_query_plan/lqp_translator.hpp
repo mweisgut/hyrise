@@ -49,6 +49,10 @@ class LQPTranslator {
   std::shared_ptr<AbstractOperator> _translate_static_table_node(const std::shared_ptr<AbstractLQPNode>& node) const;
   std::shared_ptr<AbstractOperator> _translate_update_node(const std::shared_ptr<AbstractLQPNode>& node) const;
   std::shared_ptr<AbstractOperator> _translate_union_node(const std::shared_ptr<AbstractLQPNode>& node) const;
+  std::shared_ptr<AbstractOperator> _translate_intersect_node(const std::shared_ptr<AbstractLQPNode>& node) const;
+  std::shared_ptr<AbstractOperator> _translate_except_node(const std::shared_ptr<AbstractLQPNode>& node) const;
+  std::shared_ptr<AbstractOperator> _translate_change_meta_table_node(
+      const std::shared_ptr<AbstractLQPNode>& node) const;
   std::shared_ptr<AbstractOperator> _translate_validate_node(const std::shared_ptr<AbstractLQPNode>& node) const;
 
   // Maintenance operators
@@ -58,6 +62,8 @@ class LQPTranslator {
   std::shared_ptr<AbstractOperator> _translate_drop_view_node(const std::shared_ptr<AbstractLQPNode>& node) const;
   std::shared_ptr<AbstractOperator> _translate_create_table_node(const std::shared_ptr<AbstractLQPNode>& node) const;
   std::shared_ptr<AbstractOperator> _translate_drop_table_node(const std::shared_ptr<AbstractLQPNode>& node) const;
+  std::shared_ptr<AbstractOperator> _translate_import_node(const std::shared_ptr<AbstractLQPNode>& node) const;
+  std::shared_ptr<AbstractOperator> _translate_export_node(const std::shared_ptr<AbstractLQPNode>& node) const;
   std::shared_ptr<AbstractOperator> _translate_create_prepared_plan_node(
       const std::shared_ptr<AbstractLQPNode>& node) const;
 
@@ -68,9 +74,10 @@ class LQPTranslator {
       const std::vector<std::shared_ptr<AbstractExpression>>& lqp_expressions,
       const std::shared_ptr<AbstractLQPNode>& node) const;
 
-  // Cache operator subtrees by LQP node to avoid executing operators below a diamond shape multiple times
-  mutable std::unordered_map<std::shared_ptr<const AbstractLQPNode>, std::shared_ptr<AbstractOperator>>
-      _operator_by_lqp_node;
+  // Cache operator subtrees by LQP node to avoid redundantly executing
+  //   - identical operators (operators below a diamond shape)
+  //   - equal but not identical operators
+  mutable LQPNodeUnorderedMap<std::shared_ptr<AbstractOperator>> _operator_by_lqp_node;
 };
 
 }  // namespace opossum

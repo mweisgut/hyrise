@@ -5,7 +5,6 @@
 
 #include "types.hpp"
 #include "utils/abstract_plugin.hpp"
-#include "utils/singleton.hpp"
 #include "utils/string_utils.hpp"
 
 namespace opossum {
@@ -15,10 +14,11 @@ using PluginName = std::string;
 
 struct PluginHandleWrapper {
   PluginHandle handle;
-  AbstractPlugin* plugin;
+  std::unique_ptr<AbstractPlugin> plugin;
 };
 
-class PluginManager : public Singleton<PluginManager> {
+class PluginManager : public Noncopyable {
+  friend class HyriseTest;
   friend class PluginManagerTest;
   friend class SingletonTest;
 
@@ -26,18 +26,14 @@ class PluginManager : public Singleton<PluginManager> {
   void load_plugin(const std::filesystem::path& path);
   void unload_plugin(const PluginName& name);
 
+  std::vector<PluginName> loaded_plugins() const;
+
   ~PluginManager();
 
-  // Deletes the entire PluginManager and creates a new one, used especially in tests.
-  // This can lead to a lot of issues if there are still running tasks / threads that
-  // want to access a resource. You should be very sure that this is what you want.
-  // Have a look at base_test.hpp to see the correct order of resetting things.
-  static void reset();
-
  protected:
-  friend class Singleton;
+  PluginManager() = default;
+  friend class Hyrise;
 
-  PluginManager() {}
   const PluginManager& operator=(const PluginManager&) = delete;
   PluginManager& operator=(PluginManager&&) = default;
 
@@ -45,8 +41,8 @@ class PluginManager : public Singleton<PluginManager> {
 
   // This method is called during destruction and stops and unloads all currently loaded plugions.
   void _clean_up();
-  bool _is_duplicate(AbstractPlugin* plugin) const;
-  const std::unordered_map<PluginName, PluginHandleWrapper>::iterator _unload_erase_plugin(
-      const std::unordered_map<PluginName, PluginHandleWrapper>::iterator it);
+  bool _is_duplicate(const std::unique_ptr<AbstractPlugin>& plugin) const;
+  std::unordered_map<PluginName, PluginHandleWrapper>::iterator _unload_and_erase_plugin(
+      const std::unordered_map<PluginName, PluginHandleWrapper>::iterator plugin_iter);
 };
 }  // namespace opossum

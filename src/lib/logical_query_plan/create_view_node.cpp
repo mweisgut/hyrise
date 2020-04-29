@@ -7,24 +7,32 @@
 
 namespace opossum {
 
-CreateViewNode::CreateViewNode(const std::string& view_name, const std::shared_ptr<LQPView>& view,
-                               const bool if_not_exists)
-    : BaseNonQueryNode(LQPNodeType::CreateView), view_name(view_name), view(view), if_not_exists(if_not_exists) {}
+CreateViewNode::CreateViewNode(const std::string& init_view_name, const std::shared_ptr<LQPView>& init_view,
+                               const bool init_if_not_exists)
+    : BaseNonQueryNode(LQPNodeType::CreateView),
+      view_name(init_view_name),
+      view(init_view),
+      if_not_exists(init_if_not_exists) {}
 
-std::string CreateViewNode::description() const {
+std::string CreateViewNode::description(const DescriptionMode mode) const {
   std::ostringstream stream;
   stream << "[CreateView] " << (if_not_exists ? "IfNotExists " : "");
   stream << "Name: " << view_name << ", Columns: ";
 
-  for (const auto& [column_id, column_names] : view->column_names) {
-    // Hotfix to make the master green:
-    Assert(column_names.size() == 1, "Using multiple names for a view column has unclear semantics (#1748)");
-    stream << column_names[0] << " ";
+  for (const auto& [column_id, column_name] : view->column_names) {
+    stream << column_name << " ";
   }
 
   stream << "FROM (\n" << *view->lqp << ")";
 
   return stream.str();
+}
+
+size_t CreateViewNode::_on_shallow_hash() const {
+  auto hash = boost::hash_value(view_name);
+  boost::hash_combine(hash, view);
+  boost::hash_combine(hash, if_not_exists);
+  return hash;
 }
 
 std::shared_ptr<AbstractLQPNode> CreateViewNode::_on_shallow_copy(LQPNodeMapping& node_mapping) const {

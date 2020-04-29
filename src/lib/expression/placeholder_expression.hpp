@@ -10,18 +10,18 @@ namespace opossum {
  */
 class PlaceholderExpression : public AbstractExpression {
  public:
-  explicit PlaceholderExpression(const ParameterID parameter_id);
+  explicit PlaceholderExpression(const ParameterID init_parameter_id);
 
   bool requires_computation() const override;
   std::shared_ptr<AbstractExpression> deep_copy() const override;
-  std::string as_column_name() const override;
+  std::string description(const DescriptionMode mode) const override;
   DataType data_type() const override;
 
   const ParameterID parameter_id;
 
  protected:
   bool _shallow_equals(const AbstractExpression& expression) const override;
-  size_t _on_hash() const override;
+  size_t _shallow_hash() const override;
   bool _on_is_nullable_on_lqp(const AbstractLQPNode& lqp) const override;
 };
 
