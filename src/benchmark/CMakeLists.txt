@@ -3,6 +3,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(
     hyriseMicroBenchmarks
 
+    join_micro_benchmark.cpp
     micro_benchmark_basic_fixture.cpp
     micro_benchmark_basic_fixture.hpp
     micro_benchmark_main.cpp

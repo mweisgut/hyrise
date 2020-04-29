@@ -65,7 +65,6 @@ JoinIndex::JoinIndex(const std::shared_ptr<const AbstractOperator>& left,
   if (_index_side == IndexSide::Left) {
     _adjusted_primary_predicate.flip();
   }
-  std::cout << "#JI" << "/n";
 }
 
 const std::string& JoinIndex::name() const {
