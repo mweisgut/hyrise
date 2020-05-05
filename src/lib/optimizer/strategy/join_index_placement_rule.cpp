@@ -6,7 +6,6 @@
 #include "logical_query_plan/abstract_lqp_node.hpp"
 #include "logical_query_plan/join_node.hpp"
 #include "logical_query_plan/logical_plan_root_node.hpp"
-#include "logical_query_plan/lqp_column_reference.hpp"
 #include "logical_query_plan/lqp_utils.hpp"
 #include "logical_query_plan/predicate_node.hpp"
 #include "logical_query_plan/stored_table_node.hpp"
@@ -146,7 +145,7 @@ JoinIndexApplicabilityResult JoinIndexPlacementRule::_is_index_join_applicable_l
   if (const auto lqp_column_expression =
           std::dynamic_pointer_cast<LQPColumnExpression>(left_input_node->column_expressions().front())) {
     left_input_stored_table_node =
-        std::const_pointer_cast<AbstractLQPNode>(lqp_column_expression->column_reference.original_node());
+        std::const_pointer_cast<AbstractLQPNode>(lqp_column_expression->original_node.lock());
   } else {
     return JoinIndexApplicabilityResult{};
   }
@@ -154,7 +153,7 @@ JoinIndexApplicabilityResult JoinIndexPlacementRule::_is_index_join_applicable_l
   if (const auto lqp_column_expression =
           std::dynamic_pointer_cast<LQPColumnExpression>(right_input_node->column_expressions().front())) {
     right_input_stored_table_node =
-        std::const_pointer_cast<AbstractLQPNode>(lqp_column_expression->column_reference.original_node());
+        std::const_pointer_cast<AbstractLQPNode>(lqp_column_expression->original_node.lock());
   } else {
     return JoinIndexApplicabilityResult{};
   }
