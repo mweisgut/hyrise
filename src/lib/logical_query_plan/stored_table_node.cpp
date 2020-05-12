@@ -131,12 +131,12 @@ std::vector<IndexStatistics> StoredTableNode::indexes_statistics() const {
 size_t StoredTableNode::_on_shallow_hash() const {
   size_t hash{0};
   boost::hash_combine(hash, table_name);
-  for (const auto& pruned_chunk_id : _pruned_chunk_ids) {
-    boost::hash_combine(hash, static_cast<size_t>(pruned_chunk_id));
-  }
-  for (const auto& pruned_column_id : _pruned_column_ids) {
-    boost::hash_combine(hash, static_cast<size_t>(pruned_column_id));
-  }
+  // for (const auto& pruned_chunk_id : _pruned_chunk_ids) {
+  //   boost::hash_combine(hash, static_cast<size_t>(pruned_chunk_id));
+  // }
+  // for (const auto& pruned_column_id : _pruned_column_ids) {
+  //   boost::hash_combine(hash, static_cast<size_t>(pruned_column_id));
+  // }
   return hash;
 }
 

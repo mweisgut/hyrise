@@ -6,6 +6,7 @@
 #include "abstract_lqp_node.hpp"
 #include "all_type_variant.hpp"
 #include "operators/abstract_operator.hpp"
+#include "stored_table_node.hpp"
 
 namespace opossum {
 
@@ -16,6 +17,33 @@ class PredicateNode;
 class TableScan;
 struct OperatorScanPredicate;
 struct OperatorJoinPredicate;
+
+// Wrapper around node->hash(), to enable hash based containers containing std::shared_ptr<AbstractLQPNode>
+struct LQPNodeSharedPtrHash final {
+  size_t operator()(const std::shared_ptr<AbstractLQPNode>& node) const { return node->hash(); }
+};
+
+// Wrapper around AbstractLQPNode::operator==(), to enable hash based containers containing
+// std::shared_ptr<AbstractLQPNode>
+struct LQPNodeSharedPtrEqual final {
+  size_t operator()(const std::shared_ptr<AbstractLQPNode>& lhs, const std::shared_ptr<AbstractLQPNode>& rhs) const {
+    if (lhs == rhs) {
+      return true;
+    }
+
+    const auto lhs_stored_table_node = std::dynamic_pointer_cast<StoredTableNode>(lhs);
+    const auto rhs_stored_table_node = std::dynamic_pointer_cast<StoredTableNode>(rhs);
+    if (lhs_stored_table_node && rhs_stored_table_node) {
+      return lhs_stored_table_node->table_name == rhs_stored_table_node->table_name;
+    }
+
+    return *lhs == *rhs;
+  }
+};
+
+template <typename Value>
+using LQPNodeUnorderedMap =
+    std::unordered_map<std::shared_ptr<AbstractLQPNode>, Value, LQPNodeSharedPtrHash, LQPNodeSharedPtrEqual>;
 
 /**
  * Translates an LQP (Logical Query Plan), represented by its root node, into an Operator tree for the execution
@@ -77,7 +105,8 @@ class LQPTranslator {
   // Cache operator subtrees by LQP node to avoid redundantly executing
   //   - identical operators (operators below a diamond shape)
   //   - equal but not identical operators
-  mutable LQPNodeUnorderedMap<std::shared_ptr<AbstractOperator>> _operator_by_lqp_node;
+  // mutable LQPNodeUnorderedMap<std::shared_ptr<AbstractOperator>> _operator_by_lqp_node;
+  mutable LQPNodeUnorderedMap<std::vector<std::shared_ptr<AbstractOperator>>> _operator_by_lqp_node;
 };
 
 }  // namespace opossum

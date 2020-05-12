@@ -1,6 +1,8 @@
 #include "lqp_translator.hpp"
 
+#include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -92,20 +94,76 @@ std::shared_ptr<AbstractOperator> LQPTranslator::translate_node(const std::share
    * would result in multiple operators created from predicate_c and thus in performance drops
    */
 
-  const auto operator_iter = _operator_by_lqp_node.find(node);
-  if (operator_iter != _operator_by_lqp_node.end()) {
-    return operator_iter->second;
-  }
+  // TODO(Marcel) comment, refactor
+  auto& stored_operators = _operator_by_lqp_node[node];
 
-  auto pqp = _translate_by_node_type(node->type, node);
+  if (node->type == LQPNodeType::StoredTable) {
+    // - hash ohne pruned columns und pruned chunks
+    // - Anstatt eines PQP, Speichere einen Vector an PQPs
+    // - Prüfe ob im Vector für den zu übersetzenden LQP node n1 ein Element p ist, dessen pruned columns eine Untermenge der
+    //   pruned columns von n1 sind und 
 
-  // Adding the actual LQP node that led to the creation of the PQP node.  Note, the LQP needs to be set in
-  // _translate_predicate_node_to_index_scan() as well, because the function creates two scans operators and returns
-  // only the merging union node (all three PQP nodes share the same originating LQP node).
-  pqp->lqp_node = node;
-  _operator_by_lqp_node.emplace(node, pqp);
+    // Beide Input-Tabellen haben Spalten a, b, c, d
+    // Nun hat LQP l1 die Spalten a, b geprunt und wird zu PQP p1 übersetzt
+    // Später soll LQP l2, der abgesehen vom Pruning l1 gleicht, übersetzt werden. Bei l2 wurden a, b, c geprunt.
+    // Da a, b, c eine Übermenge von a, b ist, kann p1 verwendet werden.
+    // Später soll LQP l3 übersetzt werden. Auch dieser gleicht abgesehen vom Pruning l1.
+    // Hier wurde jedoch nur Spalte a geprunt. Da dies eine Untermenge von a, b ist, wird ein neuer PQP node p3 erstellt,
+    // der p1 in der Map ersetzt. Außerdem wird der zuvor verwendete p1 durch p3 ersetzt ("entkoppeln" der Input nodes und anhängen an p3).
+    const auto stored_table_node = std::dynamic_pointer_cast<StoredTableNode>(node);
+    DebugAssert(stored_table_node, "LQP node with type 'StoredTable' could not be casted to a StoredTableNode.");
+    
+    auto includes = [](auto super_set, auto sub_set) {
+      std::sort(super_set.begin(), super_set.end());
+      std::sort(sub_set.begin(), sub_set.end());
+      return std::includes(super_set.begin(), super_set.end(), sub_set.begin(), sub_set.end());
+    };
 
-  return pqp;
+    // if we have already stored a GetTable operator that is a subset of a newly created GetTable node, we want to
+    // replace the preciously stored one.
+    //auto obsolete_operator_id = size_t{};
+    for (auto& stored_operator : stored_operators) {
+      //++obsolete_operator_id;
+      auto get_table = std::dynamic_pointer_cast<GetTable>(stored_operator);
+      DebugAssert(get_table, "An operator stored for a StoredTableNode was not a GetTable operator.");
+      if (includes(stored_table_node->pruned_column_ids(), get_table->pruned_column_ids()) &&
+        includes(stored_table_node->pruned_chunk_ids(), get_table->pruned_chunk_ids())) {
+        return get_table;
+      }
+
+      if (includes(get_table->pruned_column_ids(), stored_table_node->pruned_column_ids()) &&
+        includes(get_table->pruned_chunk_ids(), stored_table_node->pruned_chunk_ids())) {
+        // obsolete_get_table = get_table;
+        break; // there can only be one get_table operator that is a subset
+      }
+    }
+    // no stored GetTable node that subsumes the StoredTableNode, create a new operator
+    auto pqp = _translate_stored_table_node(stored_table_node);
+
+    // Ersetzen des obsoleten Knotens, das sollte auf LQP-Ebene passieren!
+    // if (obsolete_stored_operator_id) {
+    //   const auto obsolete_operator = stored_operators[obsolete_operator_id - 1];  
+    
+    // }
+
+    pqp->lqp_node = node;
+    stored_operators.emplace_back(pqp);
+    return pqp;
+
+  } else { // node->type != LQPNodeType::StoredTable
+    if (!stored_operators.empty()) {
+      return stored_operators[0];
+    }
+    
+    auto pqp = _translate_by_node_type(node->type, node);
+
+    // Adding the actual LQP node that led to the creation of the PQP node.  Note, the LQP needs to be set in
+    // _translate_predicate_node_to_index_scan() as well, because the function creates two scans operators and returns
+    // only the merging union node (all three PQP nodes share the same originating LQP node).
+    pqp->lqp_node = node;
+    stored_operators.emplace_back(pqp);
+    return pqp;
+  }  
 }
 
 std::shared_ptr<AbstractOperator> LQPTranslator::_translate_by_node_type(
