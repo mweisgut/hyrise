@@ -106,7 +106,7 @@ void AbstractTableGenerator::generate_and_store() {
       if (table_name == "lineitem") {
         sort = std::make_shared<Sort>(
           table_wrapper, std::vector<SortColumnDefinition>{SortColumnDefinition{sort_column_id, sort_mode}},
-          10u /*uint32_t*/, Sort::ForceMaterialization::Yes);
+          10000000u /*uint32_t*/, Sort::ForceMaterialization::Yes);
       } else {
         sort = std::make_shared<Sort>(
           table_wrapper, std::vector<SortColumnDefinition>{SortColumnDefinition{sort_column_id, sort_mode}},
