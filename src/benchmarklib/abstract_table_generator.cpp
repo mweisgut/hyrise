@@ -106,7 +106,7 @@ void AbstractTableGenerator::generate_and_store() {
       if (table_name == "lineitem") {
         sort = std::make_shared<Sort>(
           table_wrapper, std::vector<SortColumnDefinition>{SortColumnDefinition{sort_column_id, sort_mode}},
-          1u /*uint32_t*/, Sort::ForceMaterialization::Yes);
+          10u /*uint32_t*/, Sort::ForceMaterialization::Yes);
       } else {
         sort = std::make_shared<Sort>(
           table_wrapper, std::vector<SortColumnDefinition>{SortColumnDefinition{sort_column_id, sort_mode}},
@@ -255,7 +255,8 @@ void AbstractTableGenerator::generate_and_store() {
         if (column_ids.size() == 1) {
           table->create_index<GroupKeyIndex>(column_ids);
         } else {
-          table->create_index<CompositeGroupKeyIndex>(column_ids);
+          Fail("We only use GroupKeyIndex in this evaluation.");
+          //table->create_index<CompositeGroupKeyIndex>(column_ids);
         }
 
         std::cout << "(" << per_index_timer.lap_formatted() << ")" << std::endl;

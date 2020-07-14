@@ -161,7 +161,7 @@ std::unordered_map<std::string, BenchmarkTableInfo> TPCHTableGenerator::generate
   TableBuilder customer_builder{_benchmark_config->chunk_size, customer_column_types, customer_column_names,
                                 customer_count};
   TableBuilder order_builder{_benchmark_config->chunk_size, order_column_types, order_column_names, order_count};
-  TableBuilder lineitem_builder{1u /*uint32_t*/, lineitem_column_types, lineitem_column_names,
+  TableBuilder lineitem_builder{10u /*uint32_t*/, lineitem_column_types, lineitem_column_names,
                                 order_count * 4};
   TableBuilder part_builder{_benchmark_config->chunk_size, part_column_types, part_column_names, part_count};
   TableBuilder partsupp_builder{_benchmark_config->chunk_size, partsupp_column_types, partsupp_column_names,
@@ -319,7 +319,8 @@ AbstractTableGenerator::IndexesByTable TPCHTableGenerator::_indexes_by_table() c
       {"partsupp", {{"ps_partkey", "ps_suppkey"}, {"ps_suppkey"}}},  // ps_partkey is subset of {ps_partkey, ps_suppkey}
       {"customer", {{"c_custkey"}, {"c_nationkey"}}},
       {"orders", {{"o_orderkey"}, {"o_custkey"}}},
-      {"lineitem", {{"l_orderkey", "l_linenumber"}, {"l_partkey", "l_suppkey"}}},
+      {"lineitem", {{"l_orderkey"}, {"l_linenumber"}, {"l_partkey"}, {"l_suppkey"}}},
+      //multi column indexes: {"lineitem", {{"l_orderkey", "l_linenumber"}, {"l_partkey", "l_suppkey"}}},
       {"nation", {{"n_nationkey"}, {"n_regionkey"}}},
       {"region", {{"r_regionkey"}}},
   };
