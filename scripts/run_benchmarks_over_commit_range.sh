@@ -39,7 +39,7 @@ do
 	git checkout $commit
 
 	cores=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || sysctl -n hw.ncpu)
-	make $benchmark -j $((cores / 2)) > /dev/null
+	ninja $benchmark
 
 	./$benchmark $benchmark_arguments -o auto_${commit}.json
 done
