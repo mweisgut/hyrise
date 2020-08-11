@@ -63,6 +63,8 @@ class AbstractTableGenerator {
 
   static std::shared_ptr<BenchmarkConfig> create_benchmark_config_with_chunk_size(ChunkOffset chunk_size);
 
+  constexpr static uint32_t lineitem_chunk_size = 10000000u;
+
  protected:
   // Creates indexes, expects the table to have been added to the StorageManager and, if requested, encoded
   using IndexesByTable = std::map<std::string, std::vector<std::vector<std::string>>>;
