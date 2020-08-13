@@ -31,7 +31,7 @@ using ChunkRange = std::pair<ChunkID, ChunkID>;
 
 enum class InputSide { Left, Right };
 
-// Join operators might build internal PosLists that they have to de-reference when assembling the output Table, if the
+// Join operators might build internal PosLists that they have to de-reference when assembling the output Table if the
 // input itself is already a reference Table.
 enum class InputTableType {
   // Input Tables are data
@@ -744,7 +744,7 @@ TEST_P(JoinTestRunner, TestJoin) {
         configuration.index_side == IndexSide::Left ? configuration.left_input : configuration.right_input;
 
     // verify correctness of index usage
-    const auto& performance_data = static_cast<const JoinIndex::PerformanceData&>(join_op->performance_data());
+    const auto& performance_data = static_cast<const JoinIndex::PerformanceData&>(*join_op->performance_data);
 
     auto indexed_used_count = indexed_input.indexed_chunk_range.second - indexed_input.indexed_chunk_range.first;
 

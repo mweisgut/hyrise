@@ -21,12 +21,36 @@ std::string ProjectionNode::description(const DescriptionMode mode) const {
   return stream.str();
 }
 
-std::vector<std::shared_ptr<AbstractExpression>> ProjectionNode::column_expressions() const { return node_expressions; }
+std::vector<std::shared_ptr<AbstractExpression>> ProjectionNode::output_expressions() const { return node_expressions; }
 
 bool ProjectionNode::is_column_nullable(const ColumnID column_id) const {
   Assert(column_id < node_expressions.size(), "ColumnID out of range");
   Assert(left_input(), "Need left input to determine nullability");
   return node_expressions[column_id]->is_nullable_on_lqp(*left_input());
+}
+
+std::shared_ptr<LQPUniqueConstraints> ProjectionNode::unique_constraints() const {
+  auto unique_constraints = std::make_shared<LQPUniqueConstraints>();
+  unique_constraints->reserve(node_expressions.size());
+
+  // Forward unique constraints, if applicable
+  const auto& input_unique_constraints = left_input()->unique_constraints();
+
+  for (const auto& input_unique_constraint : *input_unique_constraints) {
+    if (!has_output_expressions(input_unique_constraint.expressions)) {
+      continue;
+      /**
+       * Future Work:
+       * Our implementation does not exploit all opportunities yet.
+       * As the next step, we could check for derived output expressions that preserve uniqueness, for example,
+       * the expression 'column + 1'.
+       * Instead of discarding a unique constraint for 'column', we could create and output a new one for 'column + 1'.
+       */
+    }
+    unique_constraints->emplace_back(input_unique_constraint);
+  }
+
+  return unique_constraints;
 }
 
 std::shared_ptr<AbstractLQPNode> ProjectionNode::_on_shallow_copy(LQPNodeMapping& node_mapping) const {

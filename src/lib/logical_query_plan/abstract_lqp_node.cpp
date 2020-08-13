@@ -6,6 +6,7 @@
 #include "boost/functional/hash.hpp"
 #include "expression/abstract_expression.hpp"
 #include "expression/expression_utils.hpp"
+#include "expression/lqp_column_expression.hpp"
 #include "expression/lqp_subquery_expression.hpp"
 #include "join_node.hpp"
 #include "lqp_utils.hpp"
@@ -221,16 +222,16 @@ bool AbstractLQPNode::shallow_equals(const AbstractLQPNode& rhs, const LQPNodeMa
   return _on_shallow_equals(rhs, node_mapping);
 }
 
-std::vector<std::shared_ptr<AbstractExpression>> AbstractLQPNode::column_expressions() const {
+std::vector<std::shared_ptr<AbstractExpression>> AbstractLQPNode::output_expressions() const {
   Assert(left_input() && !right_input(),
          "Can only forward input expressions iff there is a left input and no right input");
-  return left_input()->column_expressions();
+  return left_input()->output_expressions();
 }
 
 std::optional<ColumnID> AbstractLQPNode::find_column_id(const AbstractExpression& expression) const {
-  const auto& column_expressions = this->column_expressions();  // Avoid redundant retrieval in loop below
-  for (auto column_id = ColumnID{0}; column_id < column_expressions.size(); ++column_id) {
-    if (*column_expressions[column_id] == expression) return column_id;
+  const auto& output_expressions = this->output_expressions();  // Avoid redundant retrieval in loop below
+  for (auto column_id = ColumnID{0}; column_id < output_expressions.size(); ++column_id) {
+    if (*output_expressions[column_id] == expression) return column_id;
   }
   return std::nullopt;
 }
@@ -241,11 +242,35 @@ ColumnID AbstractLQPNode::get_column_id(const AbstractExpression& expression) co
   return *column_id;
 }
 
+bool AbstractLQPNode::has_output_expressions(const ExpressionUnorderedSet& expressions) const {
+  const auto& output_expressions = this->output_expressions();
+
+  for (const auto& expression : expressions) {
+    if (!std::any_of(output_expressions.cbegin(), output_expressions.cend(),
+                     [&expression](const auto& output_expression) { return *output_expression == *expression; })) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 bool AbstractLQPNode::is_column_nullable(const ColumnID column_id) const {
   // Default behaviour: Forward from input
   Assert(left_input() && !right_input(),
          "Can forward nullability from input iff there is a left input and no right input");
   return left_input()->is_column_nullable(column_id);
+}
+
+bool AbstractLQPNode::has_matching_unique_constraint(const ExpressionUnorderedSet& expressions) const {
+  DebugAssert(!expressions.empty(), "Invalid input. Set of expressions should not be empty.");
+  DebugAssert(has_output_expressions(expressions),
+              "The given expressions are not a subset of the LQP's output expressions.");
+
+  const auto& unique_constraints = this->unique_constraints();
+  if (unique_constraints->empty()) return false;
+
+  return contains_matching_unique_constraint(unique_constraints, expressions);
 }
 
 std::vector<FunctionalDependency> AbstractLQPNode::functional_dependencies() const {
@@ -277,21 +302,22 @@ std::vector<FunctionalDependency> AbstractLQPNode::functional_dependencies() con
   auto fds_out = std::vector<FunctionalDependency>();
 
   // Collect non-nullable columns
-  const auto expressions = column_expressions();
-  auto column_expressions_non_nullable = ExpressionUnorderedSet{};
+  const auto expressions = output_expressions();
+  auto output_expressions_non_nullable = ExpressionUnorderedSet{};
   for (auto column_id = ColumnID{0}; column_id < expressions.size(); ++column_id) {
     if (!is_column_nullable(column_id)) {
-      column_expressions_non_nullable.insert(expressions.at(column_id));
+      output_expressions_non_nullable.insert(expressions.at(column_id));
     }
   }
 
   for (const auto& fd : fds_in) {
     // Check whether the determinants are a subset of the current node's non-nullable output expressions
     if (std::any_of(fd.determinants.cbegin(), fd.determinants.cend(),
-                    [&column_expressions_non_nullable](const auto& expression) {
-                      return !column_expressions_non_nullable.contains(expression);
-                    }))
+                    [&output_expressions_non_nullable](const auto& expression) {
+                      return !output_expressions_non_nullable.contains(expression);
+                    })) {
       continue;
+    }
 
     // We do not check the columns of the FD's dependents set since they are allowed to be nullable.
 
@@ -364,6 +390,21 @@ void AbstractLQPNode::_remove_output_pointer(const AbstractLQPNode& output) {
 void AbstractLQPNode::_add_output_pointer(const std::shared_ptr<AbstractLQPNode>& output) {
   // Having the same output multiple times is allowed, e.g. for self joins
   _outputs.emplace_back(output);
+}
+
+std::shared_ptr<LQPUniqueConstraints> AbstractLQPNode::_forward_left_unique_constraints() const {
+  Assert(left_input(), "Cannot forward unique constraints without an input node.");
+  const auto& input_unique_constraints = left_input()->unique_constraints();
+
+  if constexpr (HYRISE_DEBUG) {
+    // Check whether output expressions are missing
+    for (const auto& unique_constraint : *input_unique_constraints) {
+      Assert(has_output_expressions(unique_constraint.expressions),
+             "Forwarding of constraints is illegal because node misses output expressions.");
+    }
+  }
+
+  return input_unique_constraints;
 }
 
 AbstractExpression::DescriptionMode AbstractLQPNode::_expression_description_mode(const DescriptionMode mode) {
