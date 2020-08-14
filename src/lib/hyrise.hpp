@@ -1,5 +1,8 @@
 #pragma once
 
+#include <fstream>
+#include <nlohmann/json.hpp>
+
 #include "boost/container/pmr/memory_resource.hpp"
 #include "concurrency/transaction_manager.hpp"
 #include "scheduler/immediate_execution_scheduler.hpp"
@@ -46,6 +49,7 @@ class Hyrise : public Singleton<Hyrise> {
   SettingsManager settings_manager;
   LogManager log_manager;
   Topology topology;
+  nlohmann::json chunk_size_json;
 
   // Plan caches used by the SQLPipelineBuilder if `with_{l/p}qp_cache()` are not used. Both default caches can be
   // nullptr themselves. If both default_{l/p}qp_cache and _{l/p}qp_cache are nullptr, no plan caching is used.

@@ -11,6 +11,7 @@ function(add_plugin)
     endif(NOT PARSED_ARGS_NAME)
 
     add_library(${PARSED_ARGS_NAME} SHARED ${PARSED_ARGS_SRCS})
+    target_link_libraries_system(${PARSED_ARGS_NAME} nlohmann_json::nlohmann_json)
 
     add_dependencies(${PARSED_ARGS_NAME} hyrise)
 

@@ -21,6 +21,16 @@ Hyrise::Hyrise() {
   log_manager = LogManager{};
   topology = Topology{};
   _scheduler = std::make_shared<ImmediateExecutionScheduler>();
+
+  const auto chunk_size_json_file_path = "chunk_size.json";
+  std::ifstream json_file(chunk_size_json_file_path);
+
+  if (json_file) {
+    std::cout << "Reading file: " << chunk_size_json_file_path << "\n";
+    json_file >> chunk_size_json;
+  } else {
+    std::cout << "chunk_size.json does not exist in the root directory. No custom chunk sizes loaded.\n";
+  }
 }
 
 void Hyrise::reset() {
