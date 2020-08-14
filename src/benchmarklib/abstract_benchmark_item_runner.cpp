@@ -6,6 +6,7 @@
 #include "sql/sql_pipeline_builder.hpp"
 #include "utils/list_directory.hpp"
 #include "utils/load_table.hpp"
+#include "version.hpp"
 
 namespace opossum {
 
@@ -61,7 +62,7 @@ std::tuple<bool, std::vector<SQLPipelineMetrics>, bool> AbstractBenchmarkItemRun
   if (_config->enable_visualization) {
     auto name = item_name(item_id);
     boost::replace_all(name, " ", "_");
-    visualize_prefix = std::move(name);
+    visualize_prefix = std::move(name) + "_" + GIT_HEAD_SHA1;
   }
 
   BenchmarkSQLExecutor sql_executor(_sqlite_wrapper, visualize_prefix);
