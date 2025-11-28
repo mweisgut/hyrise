@@ -6,6 +6,8 @@
 
 #include "types.hpp"
 
+class pmr_string;
+
 namespace hyrise {
 
 // Removes whitespaces from the front and back. Also reduces multiple whitespaces between words to a single one.
